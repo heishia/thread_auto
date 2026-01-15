@@ -51,7 +51,7 @@ function PostCard({ post, onDelete, onCopy, onViewThread }: PostCardProps): JSX.
           <span className="text-xs text-notion-muted">{formatDate(post.createdAt)}</span>
           {hasThread && (
             <span className="px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 rounded">
-              스레드 {(post.thread?.length || 0) + 1}개
+              1/{(post.thread?.length || 0) + 1}
             </span>
           )}
         </div>
