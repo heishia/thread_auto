@@ -59,19 +59,13 @@ function GeneratePage(): JSX.Element {
     setIsGenerating(true)
     setError(null)
     setSuccess(false)
-    setGeneratingStep('1단계: 주제에 대한 정보 조사 중...')
+    setGeneratingStep('게시물 생성 중...')
 
     // 생성 중인 게시물을 목록에 추가
     const tempId = addGeneratingPost(selectedType, topic.trim())
     console.log('[Frontend] Added generating post with tempId:', tempId)
 
     try {
-      // 2초 후 2단계로 변경
-      setTimeout(() => {
-        setGeneratingStep('2단계: 게시물 생성 중...')
-        updateGeneratingStatus(tempId, 'generating')
-      }, 3000)
-
       console.log('[Frontend] Calling window.api.generate.post...')
       const result = await window.api.generate.post(selectedType, topic.trim())
       console.log('[Frontend] API call completed, result:', result)
