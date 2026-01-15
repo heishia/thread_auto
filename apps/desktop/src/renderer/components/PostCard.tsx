@@ -30,7 +30,7 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
         </div>
       </div>
 
-      <p className="text-xs text-notion-muted mb-2">Topic: {post.topic}</p>
+      <p className="text-xs text-notion-muted mb-2">주제: {post.topic}</p>
 
       <div className="text-sm text-notion-text whitespace-pre-wrap leading-relaxed mb-4 max-h-48 overflow-y-auto">
         {post.content}
@@ -41,13 +41,13 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
           onClick={() => onCopy(post.content)}
           className="flex-1 px-3 py-1.5 text-xs font-medium text-notion-text bg-notion-sidebar hover:bg-notion-hover rounded transition-colors"
         >
-          Copy
+          복사
         </button>
         <button
           onClick={() => onDelete(post.id)}
           className="px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 rounded transition-colors"
         >
-          Delete
+          삭제
         </button>
       </div>
     </div>

@@ -5,16 +5,16 @@ interface SidebarProps {
 
 function Sidebar({ currentPage, onPageChange }: SidebarProps): JSX.Element {
   const navItems = [
-    { id: 'posts' as const, label: 'Posts', icon: '📝' },
-    { id: 'generate' as const, label: 'Generate', icon: '✨' },
-    { id: 'settings' as const, label: 'Settings', icon: '⚙️' }
+    { id: 'posts' as const, label: '게시물', icon: '📝' },
+    { id: 'generate' as const, label: '생성하기', icon: '✨' },
+    { id: 'settings' as const, label: '설정', icon: '⚙️' }
   ]
 
   return (
     <aside className="w-60 h-full bg-notion-sidebar border-r border-notion-border flex flex-col">
       <div className="p-4 border-b border-notion-border">
         <h1 className="text-lg font-semibold text-notion-text">ThreadAuto</h1>
-        <p className="text-xs text-notion-muted mt-1">Thread Post Generator</p>
+        <p className="text-xs text-notion-muted mt-1">쓰레드 게시물 생성기</p>
       </div>
 
       <nav className="flex-1 p-2">

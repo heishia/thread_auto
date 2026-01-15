@@ -21,10 +21,10 @@ export interface AppConfig {
 export type PostType = Post['type']
 
 export const POST_TYPE_LABELS: Record<PostType, string> = {
-  ag: 'Aggro',
-  pro: 'Proof',
-  br: 'Brand',
-  in: 'Insight'
+  ag: '후킹',
+  pro: '증명',
+  br: '브랜드',
+  in: '인사이트'
 }
 
 export const POST_TYPE_COLORS: Record<PostType, string> = {

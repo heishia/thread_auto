@@ -45,7 +45,7 @@ function SettingsPage(): JSX.Element {
   if (!config || !prompts) {
     return (
       <div className="p-6 flex items-center justify-center">
-        <p className="text-notion-muted">Loading...</p>
+        <p className="text-notion-muted">로딩 중...</p>
       </div>
     )
   }
@@ -53,23 +53,23 @@ function SettingsPage(): JSX.Element {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-notion-text mb-2">Settings</h2>
-        <p className="text-sm text-notion-muted">Configure your ThreadAuto preferences</p>
+        <h2 className="text-2xl font-semibold text-notion-text mb-2">설정</h2>
+        <p className="text-sm text-notion-muted">ThreadAuto 환경설정</p>
       </div>
 
       <div className="space-y-8">
         {/* API Key Section */}
         <section>
-          <h3 className="text-lg font-medium text-notion-text mb-3">Gemini API Key</h3>
+          <h3 className="text-lg font-medium text-notion-text mb-3">Gemini API 키</h3>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Enter your Gemini API key..."
+            placeholder="Gemini API 키를 입력하세요..."
             className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
           />
           <p className="mt-2 text-xs text-notion-muted">
-            Get your API key from{' '}
+            API 키는{' '}
             <a
               href="https://aistudio.google.com/app/apikey"
               target="_blank"
@@ -78,12 +78,13 @@ function SettingsPage(): JSX.Element {
             >
               Google AI Studio
             </a>
+            에서 발급받을 수 있습니다
           </p>
         </section>
 
         {/* Auto Generate Section */}
         <section>
-          <h3 className="text-lg font-medium text-notion-text mb-3">Auto Generate</h3>
+          <h3 className="text-lg font-medium text-notion-text mb-3">자동 생성</h3>
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -93,14 +94,14 @@ function SettingsPage(): JSX.Element {
                 className="w-4 h-4 rounded border-notion-border text-notion-text focus:ring-notion-text"
               />
               <span className="text-sm text-notion-text">
-                Enable automatic post generation
+                자동 게시물 생성 활성화
               </span>
             </label>
 
             {autoEnabled && (
               <div>
                 <label className="block text-sm text-notion-muted mb-2">
-                  Generate every (minutes)
+                  생성 주기 (분)
                 </label>
                 <input
                   type="number"
@@ -111,7 +112,7 @@ function SettingsPage(): JSX.Element {
                   className="w-32 px-3 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
                 />
                 <p className="mt-1 text-xs text-notion-muted">
-                  Recommended: 15 minutes (4 posts per hour)
+                  권장: 15분 (시간당 4개 게시물)
                 </p>
               </div>
             )}
@@ -120,9 +121,9 @@ function SettingsPage(): JSX.Element {
 
         {/* Prompts Section */}
         <section>
-          <h3 className="text-lg font-medium text-notion-text mb-3">Prompt Templates</h3>
+          <h3 className="text-lg font-medium text-notion-text mb-3">프롬프트 템플릿</h3>
           <p className="text-sm text-notion-muted mb-4">
-            Customize the prompts for each post type
+            각 게시물 유형별 프롬프트를 커스터마이징하세요
           </p>
 
           <div className="flex gap-2 mb-4 flex-wrap">
@@ -155,10 +156,10 @@ function SettingsPage(): JSX.Element {
             onClick={handleSave}
             className="px-6 py-3 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
           >
-            Save Settings
+            설정 저장
           </button>
           {saved && (
-            <span className="text-sm text-green-600">Settings saved!</span>
+            <span className="text-sm text-green-600">설정이 저장되었습니다!</span>
           )}
         </div>
       </div>
