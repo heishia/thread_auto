@@ -184,7 +184,7 @@ function PostList(): JSX.Element {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* 생성 중인 게시물 표시 */}
           {generatingPosts
             .filter(gp => filterType === 'all' || gp.type === filterType)
