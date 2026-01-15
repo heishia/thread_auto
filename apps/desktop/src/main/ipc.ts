@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { GoogleAuth } from 'google-auth-library'
 import {
   getConfig,
   setConfig,
@@ -70,21 +69,11 @@ function generateId(): string {
 
 async function generatePostWithVertexAI(
   gcpProjectId: string,
+  gcpApiKey: string,
   prompt: string,
   topic: string,
   researchInfo: string
 ): Promise<{ mainPost: string; thread: string[] }> {
-  const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/cloud-platform']
-  })
-  
-  const client = await auth.getClient()
-  const accessToken = await client.getAccessToken()
-  
-  if (!accessToken.token) {
-    throw new Error('Failed to get access token')
-  }
-
   const fullPrompt = `${prompt}
 
 [주제]
@@ -113,12 +102,11 @@ ${researchInfo}
 정보량이 적으면 mainPost만 작성하고 thread는 빈 배열로 해.
 정보량이 많으면 최대한 유용한 내용을 담아 여러 게시물로 나눠서 작성해.`
 
-  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/global/publishers/anthropic/models/claude-sonnet-4-5@20250929:streamRawPredict`
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/global/publishers/anthropic/models/claude-sonnet-4-5@20250929:streamRawPredict?key=${gcpApiKey}`
   
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${accessToken.token}`,
       'Content-Type': 'application/json; charset=utf-8'
     },
     body: JSON.stringify({
@@ -270,6 +258,10 @@ export function registerIpcHandlers(): void {
           console.error('[IPC] GCP Project ID is not configured')
           throw new Error('GCP Project ID is not configured')
         }
+        if (!config.gcpApiKey) {
+          console.error('[IPC] GCP API Key is not configured')
+          throw new Error('GCP API Key is not configured')
+        }
       } else {
         if (!config.geminiApiKey) {
           console.error('[IPC] Gemini API key is not configured')
@@ -296,6 +288,7 @@ export function registerIpcHandlers(): void {
         console.log(`[Step 2] Generating post with Vertex AI (Claude Sonnet 4.5)`)
         const result = await generatePostWithVertexAI(
           config.gcpProjectId,
+          config.gcpApiKey,
           prompt,
           topicToUse || '최신 AI 및 코딩 트렌드',
           researchInfo
@@ -339,6 +332,9 @@ export function registerIpcHandlers(): void {
       if (!config.gcpProjectId) {
         throw new Error('GCP Project ID is not configured')
       }
+      if (!config.gcpApiKey) {
+        throw new Error('GCP API Key is not configured')
+      }
     } else {
       if (!config.geminiApiKey) {
         throw new Error('Gemini API key is not configured')
@@ -374,6 +370,7 @@ export function registerIpcHandlers(): void {
       console.log(`[Auto Step 2] Generating post with Vertex AI (Claude Sonnet 4.5)`)
       const result = await generatePostWithVertexAI(
         config.gcpProjectId,
+        config.gcpApiKey,
         prompt,
         randomTopic,
         researchInfo

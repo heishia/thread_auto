@@ -13,6 +13,7 @@ export interface AppConfig {
   geminiApiKey: string
   perplexityApiKey: string
   gcpProjectId: string
+  gcpApiKey: string
   useVertexAI: boolean
   autoGenerateEnabled: boolean
   autoGenerateInterval: number

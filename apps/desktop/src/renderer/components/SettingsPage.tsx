@@ -6,6 +6,7 @@ function SettingsPage(): JSX.Element {
   const [apiKey, setApiKey] = useState('')
   const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [gcpProjectId, setGcpProjectId] = useState('')
+  const [gcpApiKey, setGcpApiKey] = useState('')
   const [useVertexAI, setUseVertexAI] = useState(false)
   const [autoEnabled, setAutoEnabled] = useState(false)
   const [autoInterval, setAutoInterval] = useState(15)
@@ -19,6 +20,7 @@ function SettingsPage(): JSX.Element {
     setApiKey(cfg.geminiApiKey)
     setPerplexityApiKey(cfg.perplexityApiKey || '')
     setGcpProjectId(cfg.gcpProjectId || '')
+    setGcpApiKey(cfg.gcpApiKey || '')
     setUseVertexAI(cfg.useVertexAI || false)
     setAutoEnabled(cfg.autoGenerateEnabled)
     setAutoInterval(cfg.autoGenerateInterval)
@@ -44,6 +46,7 @@ function SettingsPage(): JSX.Element {
       geminiApiKey: apiKey,
       perplexityApiKey: perplexityApiKey,
       gcpProjectId: gcpProjectId,
+      gcpApiKey: gcpApiKey,
       useVertexAI: useVertexAI,
       autoGenerateEnabled: autoEnabled,
       autoGenerateInterval: autoInterval,
@@ -123,22 +126,46 @@ function SettingsPage(): JSX.Element {
               </label>
 
               {useVertexAI ? (
-                <div>
-                  <label className="block text-sm font-medium text-notion-text mb-2">
-                    GCP Project ID
-                  </label>
-                  <input
-                    type="text"
-                    value={gcpProjectId}
-                    onChange={(e) => setGcpProjectId(e.target.value)}
-                    placeholder="your-gcp-project-id"
-                    className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
-                  />
-                  <p className="mt-2 text-xs text-notion-muted">
-                    Google Cloud Console에서 프로젝트 ID를 확인하세요.
-                    <br />
-                    gcloud CLI로 인증이 필요합니다: <code className="bg-gray-100 px-1 rounded">gcloud auth application-default login</code>
-                  </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-notion-text mb-2">
+                      GCP Project ID
+                    </label>
+                    <input
+                      type="text"
+                      value={gcpProjectId}
+                      onChange={(e) => setGcpProjectId(e.target.value)}
+                      placeholder="your-gcp-project-id"
+                      className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                    />
+                    <p className="mt-2 text-xs text-notion-muted">
+                      Google Cloud Console에서 프로젝트 ID를 확인하세요
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-notion-text mb-2">
+                      GCP API 키
+                    </label>
+                    <input
+                      type="password"
+                      value={gcpApiKey}
+                      onChange={(e) => setGcpApiKey(e.target.value)}
+                      placeholder="GCP API 키를 입력하세요..."
+                      className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                    />
+                    <p className="mt-2 text-xs text-notion-muted">
+                      <a
+                        href="https://console.cloud.google.com/apis/credentials"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        Google Cloud Console - API 및 서비스 - 사용자 인증 정보
+                      </a>
+                      에서 API 키를 생성하세요
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div>

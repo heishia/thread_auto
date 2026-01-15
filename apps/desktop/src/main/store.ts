@@ -13,6 +13,7 @@ export interface AppConfig {
   geminiApiKey: string
   perplexityApiKey: string
   gcpProjectId: string
+  gcpApiKey: string
   useVertexAI: boolean
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
@@ -89,6 +90,7 @@ const store = new Store<StoreSchema>({
       geminiApiKey: '',
       perplexityApiKey: '',
       gcpProjectId: '',
+      gcpApiKey: '',
       useVertexAI: false,
       autoGenerateEnabled: false,
       autoGenerateInterval: 15,
