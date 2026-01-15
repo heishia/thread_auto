@@ -3,11 +3,9 @@ import { AppConfig, PostType, POST_TYPE_LABELS } from '../types'
 
 function SettingsPage(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null)
-  const [apiKey, setApiKey] = useState('')
   const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [gcpProjectId, setGcpProjectId] = useState('')
   const [gcpApiKey, setGcpApiKey] = useState('')
-  const [useVertexAI, setUseVertexAI] = useState(false)
   const [autoEnabled, setAutoEnabled] = useState(false)
   const [autoInterval, setAutoInterval] = useState(15)
   const [prompts, setPrompts] = useState<AppConfig['prompts'] | null>(null)
@@ -17,11 +15,9 @@ function SettingsPage(): JSX.Element {
   const loadConfig = useCallback(async () => {
     const cfg = await window.api.config.get()
     setConfig(cfg)
-    setApiKey(cfg.geminiApiKey)
     setPerplexityApiKey(cfg.perplexityApiKey || '')
     setGcpProjectId(cfg.gcpProjectId || '')
     setGcpApiKey(cfg.gcpApiKey || '')
-    setUseVertexAI(cfg.useVertexAI || false)
     setAutoEnabled(cfg.autoGenerateEnabled)
     setAutoInterval(cfg.autoGenerateInterval)
     setPrompts(cfg.prompts)
@@ -33,21 +29,16 @@ function SettingsPage(): JSX.Element {
 
   const handleSave = async () => {
     console.log('[Settings] Saving config:', {
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey.length,
       hasPerplexityApiKey: !!perplexityApiKey,
-      perplexityApiKeyLength: perplexityApiKey.length,
       hasGcpProjectId: !!gcpProjectId,
-      useVertexAI,
+      hasGcpApiKey: !!gcpApiKey,
       autoEnabled,
       autoInterval
     })
     const result = await window.api.config.set({
-      geminiApiKey: apiKey,
       perplexityApiKey: perplexityApiKey,
       gcpProjectId: gcpProjectId,
       gcpApiKey: gcpApiKey,
-      useVertexAI: useVertexAI,
       autoGenerateEnabled: autoEnabled,
       autoGenerateInterval: autoInterval,
       prompts: prompts || config?.prompts
@@ -111,87 +102,49 @@ function SettingsPage(): JSX.Element {
             </div>
 
             <div className="border-t border-notion-border pt-4">
-              <h4 className="text-sm font-medium text-notion-text mb-3">게시물 생성 모델 선택</h4>
+              <h4 className="text-sm font-medium text-notion-text mb-3">Vertex AI (Claude Sonnet 4.5) 설정</h4>
               
-              <label className="flex items-center gap-3 cursor-pointer mb-4">
-                <input
-                  type="checkbox"
-                  checked={useVertexAI}
-                  onChange={(e) => setUseVertexAI(e.target.checked)}
-                  className="w-4 h-4 rounded border-notion-border text-notion-text focus:ring-notion-text"
-                />
-                <span className="text-sm text-notion-text">
-                  Vertex AI (Claude Sonnet 4.5) 사용
-                </span>
-              </label>
-
-              {useVertexAI ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-notion-text mb-2">
-                      GCP Project ID
-                    </label>
-                    <input
-                      type="text"
-                      value={gcpProjectId}
-                      onChange={(e) => setGcpProjectId(e.target.value)}
-                      placeholder="your-gcp-project-id"
-                      className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
-                    />
-                    <p className="mt-2 text-xs text-notion-muted">
-                      Google Cloud Console에서 프로젝트 ID를 확인하세요
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-notion-text mb-2">
-                      GCP API 키
-                    </label>
-                    <input
-                      type="password"
-                      value={gcpApiKey}
-                      onChange={(e) => setGcpApiKey(e.target.value)}
-                      placeholder="GCP API 키를 입력하세요..."
-                      className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
-                    />
-                    <p className="mt-2 text-xs text-notion-muted">
-                      <a
-                        href="https://console.cloud.google.com/apis/credentials"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        Google Cloud Console - API 및 서비스 - 사용자 인증 정보
-                      </a>
-                      에서 API 키를 생성하세요
-                    </p>
-                  </div>
-                </div>
-              ) : (
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-notion-text mb-2">
-                    Gemini API 키
+                    GCP Project ID
+                  </label>
+                  <input
+                    type="text"
+                    value={gcpProjectId}
+                    onChange={(e) => setGcpProjectId(e.target.value)}
+                    placeholder="your-gcp-project-id"
+                    className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                  />
+                  <p className="mt-2 text-xs text-notion-muted">
+                    Google Cloud Console에서 프로젝트 ID를 확인하세요
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-notion-text mb-2">
+                    GCP API 키
                   </label>
                   <input
                     type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Gemini API 키를 입력하세요..."
+                    value={gcpApiKey}
+                    onChange={(e) => setGcpApiKey(e.target.value)}
+                    placeholder="GCP API 키를 입력하세요..."
                     className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
                   />
                   <p className="mt-2 text-xs text-notion-muted">
                     <a
-                      href="https://aistudio.google.com/app/apikey"
+                      href="https://console.cloud.google.com/apis/credentials"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:underline"
                     >
-                      Google AI Studio
+                      Google Cloud Console - API 및 서비스 - 사용자 인증 정보
                     </a>
-                    에서 발급받을 수 있습니다
+                    에서 API 키를 생성하세요
                   </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </section>
