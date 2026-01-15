@@ -12,6 +12,8 @@ export interface Post {
 export interface AppConfig {
   geminiApiKey: string
   perplexityApiKey: string
+  gcpProjectId: string
+  useVertexAI: boolean
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {
@@ -33,19 +35,22 @@ const basePrompt = `[역할]
 독자들에게 실용적이고 즉시 써먹을 수 있는 정보를 제공하면서, 동시에 FOMO(놓치면 손해)를 자극해야 해.
 
 [말투 및 스타일]
-- 반말 사용 (친근하지만 전문적인 느낌)
+- 반말 이지만 친근하고 예의바른 어투를 사용 진지한 말투 사용.
 - 자신감 있고 직설적인 톤
 - 가끔 따뜻한 격려도 섞어줘
 
 [필수 작성 규칙]
-1. 한 줄(최대 25자)만 작성
-3. 구체적인 수치 or 결과 제시 
+1. 한 줄은 최대 30자까지만 작성 
+2. 온점은 생략해줘 (있다고 생각하기)
+3. 구체적인 수치 or 결과 제시 등 증거를 활용 
 4. 실용적이고 바로 써먹을 수 있는 내용
 5. 좋아요/리포스트 유도 저장하고 싶은 내용으로 구성 
-6. 총 5-8줄 분량
+6. 이어지는 쓰레드 형식중 첫번째 글은 5줄이내로 구성, 그 이후 이어지는 쓰레드는 총 5~8줄로 구성
 
 [금지 사항]
 - 추상적이거나 뻔한 이야기 금지
+- 어려보이는 말투, 단어 사용금지 
+
 `
 
 // 각 타입별 커스텀 프롬프트 (UI에서 수정 가능)
@@ -83,6 +88,8 @@ const store = new Store<StoreSchema>({
     config: {
       geminiApiKey: '',
       perplexityApiKey: '',
+      gcpProjectId: '',
+      useVertexAI: false,
       autoGenerateEnabled: false,
       autoGenerateInterval: 15,
       prompts: defaultPrompts

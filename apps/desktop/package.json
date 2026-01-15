@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "google-auth-library": "^10.5.0"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",
