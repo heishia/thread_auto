@@ -57,6 +57,10 @@ function GeneratePage(): JSX.Element {
       return
     }
 
+    console.log('[Frontend] Generate button clicked')
+    console.log('[Frontend] Type:', selectedType, 'Topic:', topic.trim())
+    console.log('[Frontend] Config:', config)
+
     setIsGenerating(true)
     setError(null)
     setSuccess(false)
@@ -64,6 +68,7 @@ function GeneratePage(): JSX.Element {
 
     // 생성 중인 게시물을 목록에 추가
     const tempId = addGeneratingPost(selectedType, topic.trim())
+    console.log('[Frontend] Added generating post with tempId:', tempId)
 
     try {
       // 2초 후 2단계로 변경
@@ -72,7 +77,9 @@ function GeneratePage(): JSX.Element {
         updateGeneratingStatus(tempId, 'generating')
       }, 3000)
 
-      await window.api.generate.post(selectedType, topic.trim())
+      console.log('[Frontend] Calling window.api.generate.post...')
+      const result = await window.api.generate.post(selectedType, topic.trim())
+      console.log('[Frontend] API call completed, result:', result)
       
       // 생성 완료 후 임시 게시물 제거 및 목록 새로고침
       removeGeneratingPost(tempId)
@@ -84,6 +91,7 @@ function GeneratePage(): JSX.Element {
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       // 에러 발생 시 임시 게시물 제거
+      console.error('[Frontend] Error during generation:', err)
       removeGeneratingPost(tempId)
       setError(err instanceof Error ? err.message : '생성에 실패했습니다')
       setGeneratingStep('')

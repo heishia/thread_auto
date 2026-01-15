@@ -14,7 +14,7 @@ import {
 // 웹 검색을 통해 주제에 대한 정보를 수집하는 함수
 async function searchAndSummarize(apiKey: string, topic: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
   const searchPrompt = `다음 주제에 대해 웹에서 찾을 수 있는 최신 정보, 트렌드, 통계, 획기적인 인사이트를 조사하고 요약해주세요.
 단순한 정의가 아니라, 실용적이고 구체적인 정보를 찾아주세요.
@@ -45,7 +45,7 @@ async function generatePostWithInfo(
   researchInfo: string
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
   const fullPrompt = `${prompt}
 
@@ -71,7 +71,7 @@ async function generateSimplePost(
   topic: string
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
   const fullPrompt = `${prompt}
 
@@ -88,12 +88,22 @@ ${topic}
 export function registerIpcHandlers(): void {
   // Config handlers
   ipcMain.handle('config:get', () => {
-    return getConfig()
+    const config = getConfig()
+    console.log('[IPC] config:get called, API key exists:', !!config.geminiApiKey)
+    return config
   })
 
   ipcMain.handle('config:set', (_, config: Partial<AppConfig>) => {
+    console.log('[IPC] config:set called with:', { 
+      hasApiKey: !!config.geminiApiKey,
+      apiKeyLength: config.geminiApiKey?.length || 0,
+      autoGenerateEnabled: config.autoGenerateEnabled,
+      autoGenerateInterval: config.autoGenerateInterval
+    })
     setConfig(config)
-    return getConfig()
+    const updated = getConfig()
+    console.log('[IPC] config saved, API key exists:', !!updated.geminiApiKey)
+    return updated
   })
 
   // Posts handlers
@@ -110,19 +120,23 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     'generate:post',
     async (_, type: Post['type'], topic: string) => {
+      console.log(`[IPC] generate:post called with type: ${type}, topic: ${topic}`)
       const config = getConfig()
+      console.log(`[IPC] Config loaded, API key exists: ${!!config.geminiApiKey}`)
 
       if (!config.geminiApiKey) {
+        console.error('[IPC] Gemini API key is not configured')
         throw new Error('Gemini API key is not configured')
       }
 
       // 기본 프롬프트 + 커스텀 프롬프트 조합
       const prompt = getFullPrompt(type)
+      console.log(`[IPC] Prompt loaded, length: ${prompt.length}`)
       
       // Step 1: AI로 주제에 대한 정보 조사 및 요약
       console.log(`[Step 1] Researching topic: ${topic}`)
       const researchInfo = await searchAndSummarize(config.geminiApiKey, topic)
-      console.log(`[Step 1] Research completed`)
+      console.log(`[Step 1] Research completed, info length: ${researchInfo.length}`)
       
       // Step 2: 조사된 정보를 바탕으로 게시물 생성
       console.log(`[Step 2] Generating post with research info`)
@@ -132,7 +146,7 @@ export function registerIpcHandlers(): void {
         topic,
         researchInfo
       )
-      console.log(`[Step 2] Post generation completed`)
+      console.log(`[Step 2] Post generation completed, content length: ${content.length}`)
 
       const post: Post = {
         id: generateId(),
@@ -143,6 +157,7 @@ export function registerIpcHandlers(): void {
       }
 
       addPost(post)
+      console.log(`[IPC] Post saved with id: ${post.id}`)
       return post
     }
   )

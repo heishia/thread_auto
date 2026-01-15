@@ -24,12 +24,19 @@ function SettingsPage(): JSX.Element {
   }, [loadConfig])
 
   const handleSave = async () => {
-    await window.api.config.set({
+    console.log('[Settings] Saving config:', {
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey.length,
+      autoEnabled,
+      autoInterval
+    })
+    const result = await window.api.config.set({
       geminiApiKey: apiKey,
       autoGenerateEnabled: autoEnabled,
       autoGenerateInterval: autoInterval,
       prompts: prompts || config?.prompts
     })
+    console.log('[Settings] Config saved, result:', result)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
