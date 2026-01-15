@@ -66,9 +66,75 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 }
 
+async function getAccessToken(serviceAccountKey: string): Promise<string> {
+  try {
+    const keyData = JSON.parse(serviceAccountKey)
+    const { client_email, private_key } = keyData
+    
+    const now = Math.floor(Date.now() / 1000)
+    const expiry = now + 3600
+    
+    const header = {
+      alg: 'RS256',
+      typ: 'JWT'
+    }
+    
+    const payload = {
+      iss: client_email,
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: expiry,
+      iat: now
+    }
+    
+    const base64url = (str: string): string => {
+      return Buffer.from(str)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '')
+    }
+    
+    const encodedHeader = base64url(JSON.stringify(header))
+    const encodedPayload = base64url(JSON.stringify(payload))
+    const signatureInput = `${encodedHeader}.${encodedPayload}`
+    
+    const crypto = await import('crypto')
+    const sign = crypto.createSign('RSA-SHA256')
+    sign.update(signatureInput)
+    sign.end()
+    
+    const signature = sign.sign(private_key, 'base64')
+    const encodedSignature = signature
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
+    
+    const jwt = `${signatureInput}.${encodedSignature}`
+    
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+    })
+    
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      throw new Error(`OAuth token error: ${tokenResponse.status} - ${errorText}`)
+    }
+    
+    const tokenData = await tokenResponse.json()
+    return tokenData.access_token
+  } catch (error) {
+    throw new Error(`Failed to get access token: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 async function generatePostWithVertexAI(
   gcpProjectId: string,
-  gcpApiKey: string,
+  serviceAccountKey: string,
   prompt: string,
   topic: string,
   researchInfo: string
@@ -101,12 +167,14 @@ ${researchInfo}
 정보량이 적으면 mainPost만 작성하고 thread는 빈 배열로 해.
 정보량이 많으면 최대한 유용한 내용을 담아 여러 게시물로 나눠서 작성해.`
 
-  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/global/publishers/anthropic/models/claude-sonnet-4-5@20250929:streamRawPredict?key=${gcpApiKey}`
+  const accessToken = await getAccessToken(serviceAccountKey)
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/us-east5/publishers/anthropic/models/claude-sonnet-4-5@20250929:streamRawPredict`
   
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json; charset=utf-8'
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify({
       anthropic_version: 'vertex-2023-10-16',
@@ -138,7 +206,8 @@ ${researchInfo}
         thread: Array.isArray(parsed.thread) ? parsed.thread : []
       }
     }
-  } catch (e) {
+  } catch {
+    // JSON 파싱 실패 시 원본 텍스트 반환
   }
   
   return {
@@ -181,8 +250,8 @@ export function registerIpcHandlers(): void {
       if (!config.gcpProjectId) {
         throw new Error('GCP Project ID is not configured')
       }
-      if (!config.gcpApiKey) {
-        throw new Error('GCP API Key is not configured')
+      if (!config.gcpServiceAccountKey) {
+        throw new Error('GCP Service Account Key is not configured')
       }
 
       if (!config.perplexityApiKey) {
@@ -195,7 +264,7 @@ export function registerIpcHandlers(): void {
       
       const { mainPost, thread } = await generatePostWithVertexAI(
         config.gcpProjectId,
-        config.gcpApiKey,
+        config.gcpServiceAccountKey,
         prompt,
         topicToUse || '최신 AI 및 코딩 트렌드',
         researchInfo
@@ -222,8 +291,8 @@ export function registerIpcHandlers(): void {
     if (!config.gcpProjectId) {
       throw new Error('GCP Project ID is not configured')
     }
-    if (!config.gcpApiKey) {
-      throw new Error('GCP API Key is not configured')
+    if (!config.gcpServiceAccountKey) {
+      throw new Error('GCP Service Account Key is not configured')
     }
 
     if (!config.perplexityApiKey) {
@@ -249,7 +318,7 @@ export function registerIpcHandlers(): void {
     
     const { mainPost, thread } = await generatePostWithVertexAI(
       config.gcpProjectId,
-      config.gcpApiKey,
+      config.gcpServiceAccountKey,
       prompt,
       randomTopic,
       researchInfo

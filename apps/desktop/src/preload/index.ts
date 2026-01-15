@@ -11,8 +11,9 @@ export interface Post {
 }
 
 export interface AppConfig {
-  geminiApiKey: string
   perplexityApiKey: string
+  gcpProjectId: string
+  gcpServiceAccountKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {

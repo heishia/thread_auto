@@ -12,7 +12,7 @@ export interface Post {
 export interface AppConfig {
   perplexityApiKey: string
   gcpProjectId: string
-  gcpApiKey: string
+  gcpServiceAccountKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {

@@ -190,26 +190,13 @@ function PostList(): JSX.Element {
             .filter(gp => filterType === 'all' || gp.type === filterType)
             .map((generatingPost) => (
             <div key={generatingPost.id} className="relative">
-              <div className="border border-notion-border rounded-lg p-4 bg-blue-50 animate-pulse">
-                <div className="flex items-start justify-between mb-3">
-                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${POST_TYPE_COLORS[generatingPost.type]} text-white`}>
-                    {POST_TYPE_LABELS[generatingPost.type]}
-                  </span>
-                  <div className="flex items-center gap-2 text-blue-600 text-xs">
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span className="font-medium">
-                      {generatingPost.status === 'researching' ? '정보 조사 중...' : '게시물 생성 중...'}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-sm text-notion-muted mb-2">
-                  <strong>주제:</strong> {generatingPost.topic}
-                </div>
-                <div className="text-sm text-blue-600 italic">
-                  AI가 게시물을 작성하고 있습니다. 잠시만 기다려주세요...
+              <div className="border border-notion-border rounded-lg p-4 bg-blue-50">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="text-sm font-medium">게시물 생성 중</span>
                 </div>
               </div>
             </div>
