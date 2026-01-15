@@ -4,9 +4,10 @@ interface PostCardProps {
   post: Post
   onDelete: (id: string) => void
   onCopy: (content: string) => void
+  onViewThread?: (post: Post) => void
 }
 
-function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
+function PostCard({ post, onDelete, onCopy, onViewThread }: PostCardProps): JSX.Element {
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleString('ko-KR', {
@@ -17,8 +18,13 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
     })
   }
 
+  const hasThread = post.thread && post.thread.length > 0
+
   return (
-    <div className="bg-white border border-notion-border rounded-lg p-4 hover:shadow-sm transition-shadow">
+    <div 
+      className={`bg-white border border-notion-border rounded-lg p-4 hover:shadow-sm transition-shadow ${hasThread ? 'cursor-pointer' : ''}`}
+      onDoubleClick={() => hasThread && onViewThread?.(post)}
+    >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <span
@@ -27,6 +33,11 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
             {POST_TYPE_LABELS[post.type]}
           </span>
           <span className="text-xs text-notion-muted">{formatDate(post.createdAt)}</span>
+          {hasThread && (
+            <span className="px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 rounded">
+              스레드 {post.thread.length + 1}개
+            </span>
+          )}
         </div>
       </div>
 
@@ -36,6 +47,12 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
         {post.content}
       </div>
 
+      {hasThread && (
+        <div className="mb-3 px-3 py-2 bg-blue-50 text-blue-700 text-xs rounded">
+          더블클릭하여 전체 스레드 보기
+        </div>
+      )}
+
       <div className="flex items-center gap-2 pt-3 border-t border-notion-border">
         <button
           onClick={() => onCopy(post.content)}
@@ -43,6 +60,14 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
         >
           복사
         </button>
+        {hasThread && (
+          <button
+            onClick={() => onViewThread?.(post)}
+            className="flex-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+          >
+            전체 보기
+          </button>
+        )}
         <button
           onClick={() => onDelete(post.id)}
           className="px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 rounded transition-colors"

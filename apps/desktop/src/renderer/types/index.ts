@@ -4,6 +4,7 @@ export interface Post {
   content: string
   topic: string
   createdAt: string
+  thread?: string[]
 }
 
 export interface AppConfig {

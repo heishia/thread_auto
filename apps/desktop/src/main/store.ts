@@ -6,6 +6,7 @@ export interface Post {
   content: string
   topic: string
   createdAt: string
+  thread?: string[] // 연결된 게시물들 (스레드)
 }
 
 export interface AppConfig {

@@ -14,6 +14,7 @@ function PostList(): JSX.Element {
   const [useTopicSetting, setUseTopicSetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingProgress, setGeneratingProgress] = useState({ current: 0, total: 0 })
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const { generatingPosts, addGeneratingPost, updateGeneratingStatus, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
 
   const loadPosts = useCallback(async () => {
@@ -37,6 +38,17 @@ function PostList(): JSX.Element {
       setCopiedId(post.id)
       setTimeout(() => setCopiedId(null), 2000)
     }
+  }
+
+  const handleViewThread = (post: Post) => {
+    setSelectedPost(post)
+  }
+
+  const handleCopyThread = async (post: Post) => {
+    const fullThread = [post.content, ...(post.thread || [])].join('\n\n---\n\n')
+    await navigator.clipboard.writeText(fullThread)
+    setCopiedId(post.id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   const filteredPosts =
@@ -80,26 +92,18 @@ function PostList(): JSX.Element {
 
         await Promise.all(generatePromises)
       } else {
-        // 주제 설정이 없는 경우: 일반 로직 (랜덤 주제 + 간단한 생성)
-        const topics = [
-          '바이브 코딩 생산성 팁',
-          '개발자를 위한 AI 도구',
-          'AI로 코딩 배우기',
-          'AI로 프로젝트 빠르게 만들기',
-          '최신 개발 트렌드',
-          '효율적인 코딩 습관',
-          '코드 리뷰 베스트 프랙티스',
-          '개발자 커리어 성장',
-          '오픈소스 기여 방법',
-          '테스트 주도 개발'
-        ]
-        
+        // 주제 설정이 없는 경우: 빈 주제로 광범위한 조사 진행
         const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
-          const randomTopic = topics[Math.floor(Math.random() * topics.length)]
-          const tempId = addGeneratingPost(bulkType, randomTopic)
+          const tempId = addGeneratingPost(bulkType, '최신 AI 및 코딩 트렌드')
           
           try {
-            const result = await window.api.generate.simple(bulkType, randomTopic)
+            // 2초 후 상태 변경
+            setTimeout(() => {
+              updateGeneratingStatus(tempId, 'generating')
+            }, 2000)
+            
+            // 빈 주제로 광범위한 조사 + 생성
+            const result = await window.api.generate.post(bulkType, '')
             
             // 완료 후 임시 게시물 제거
             removeGeneratingPost(tempId)
@@ -219,7 +223,7 @@ function PostList(): JSX.Element {
                   복사됨!
                 </div>
               )}
-              <PostCard post={post} onDelete={handleDelete} onCopy={handleCopy} />
+              <PostCard post={post} onDelete={handleDelete} onCopy={handleCopy} onViewThread={handleViewThread} />
             </div>
           ))}
         </div>
@@ -234,6 +238,78 @@ function PostList(): JSX.Element {
       >
         +
       </button>
+
+      {/* 스레드 보기 모달 */}
+      {selectedPost && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPost(null)}>
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-notion-border flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-notion-text">전체 스레드</h3>
+                <p className="text-sm text-notion-muted mt-1">
+                  {selectedPost.thread ? `총 ${selectedPost.thread.length + 1}개의 게시물` : '1개의 게시물'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="text-notion-muted hover:text-notion-text transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 첫 번째 게시물 */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`px-2 py-0.5 text-xs font-medium text-white rounded ${POST_TYPE_COLORS[selectedPost.type]}`}>
+                    {POST_TYPE_LABELS[selectedPost.type]}
+                  </span>
+                  <span className="text-xs text-notion-muted">1/{(selectedPost.thread?.length || 0) + 1}</span>
+                </div>
+                <div className="text-sm text-notion-text whitespace-pre-wrap leading-relaxed">
+                  {selectedPost.content}
+                </div>
+              </div>
+
+              {/* 연결된 게시물들 */}
+              {selectedPost.thread && selectedPost.thread.map((threadContent, index) => (
+                <div key={index} className="border-l-4 border-gray-300 pl-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-notion-muted">{index + 2}/{selectedPost.thread!.length + 1}</span>
+                  </div>
+                  <div className="text-sm text-notion-text whitespace-pre-wrap leading-relaxed">
+                    {threadContent}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-notion-border flex gap-3">
+              <button
+                onClick={() => handleCopyThread(selectedPost)}
+                className="flex-1 px-4 py-2 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
+              >
+                전체 복사
+              </button>
+              <button
+                onClick={() => handleCopy(selectedPost.content)}
+                className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
+              >
+                첫 번째만 복사
+              </button>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 대량 생성 모달 */}
       {showBulkModal && (
