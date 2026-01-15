@@ -1,13 +1,16 @@
 appId: com.threadauto.app
 productName: ThreadAuto
+icon: ../../asset/favicon.ico
 directories:
   buildResources: build
   output: dist
 files:
+  - dist/**/*
+  - package.json
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.*'
-  - '!{.eslintrc,.gitignore,tsconfig*.json}'
+  - '!{.eslintrc*,.gitignore,tsconfig*.json}'
 asarUnpack:
   - resources/**
 win:
