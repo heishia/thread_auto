@@ -10,6 +10,7 @@ export interface Post {
 
 export interface AppConfig {
   geminiApiKey: string
+  perplexityApiKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {
@@ -34,7 +35,6 @@ declare global {
       }
       generate: {
         post: (type: Post['type'], topic: string) => Promise<Post>
-        simple: (type: Post['type'], topic: string) => Promise<Post>
         auto: () => Promise<Post>
       }
     }

@@ -11,6 +11,7 @@ export interface Post {
 
 export interface AppConfig {
   geminiApiKey: string
+  perplexityApiKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {
@@ -34,8 +35,6 @@ const api = {
   generate: {
     post: (type: Post['type'], topic: string): Promise<Post> =>
       ipcRenderer.invoke('generate:post', type, topic),
-    simple: (type: Post['type'], topic: string): Promise<Post> =>
-      ipcRenderer.invoke('generate:simple', type, topic),
     auto: (): Promise<Post> => ipcRenderer.invoke('generate:auto')
   }
 }

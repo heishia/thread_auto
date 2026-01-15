@@ -4,6 +4,7 @@ import { AppConfig, PostType, POST_TYPE_LABELS } from '../types'
 function SettingsPage(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [apiKey, setApiKey] = useState('')
+  const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [autoEnabled, setAutoEnabled] = useState(false)
   const [autoInterval, setAutoInterval] = useState(15)
   const [prompts, setPrompts] = useState<AppConfig['prompts'] | null>(null)
@@ -14,6 +15,7 @@ function SettingsPage(): JSX.Element {
     const cfg = await window.api.config.get()
     setConfig(cfg)
     setApiKey(cfg.geminiApiKey)
+    setPerplexityApiKey(cfg.perplexityApiKey || '')
     setAutoEnabled(cfg.autoGenerateEnabled)
     setAutoInterval(cfg.autoGenerateInterval)
     setPrompts(cfg.prompts)
@@ -27,11 +29,14 @@ function SettingsPage(): JSX.Element {
     console.log('[Settings] Saving config:', {
       hasApiKey: !!apiKey,
       apiKeyLength: apiKey.length,
+      hasPerplexityApiKey: !!perplexityApiKey,
+      perplexityApiKeyLength: perplexityApiKey.length,
       autoEnabled,
       autoInterval
     })
     const result = await window.api.config.set({
       geminiApiKey: apiKey,
+      perplexityApiKey: perplexityApiKey,
       autoGenerateEnabled: autoEnabled,
       autoGenerateInterval: autoInterval,
       prompts: prompts || config?.prompts
@@ -65,28 +70,59 @@ function SettingsPage(): JSX.Element {
       </div>
 
       <div className="space-y-8">
-        {/* API Key Section */}
+        {/* API Keys Section */}
         <section>
-          <h3 className="text-lg font-medium text-notion-text mb-3">Gemini API 키</h3>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Gemini API 키를 입력하세요..."
-            className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
-          />
-          <p className="mt-2 text-xs text-notion-muted">
-            API 키는{' '}
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              Google AI Studio
-            </a>
-            에서 발급받을 수 있습니다
-          </p>
+          <h3 className="text-lg font-medium text-notion-text mb-4">API 키 설정</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-notion-text mb-2">
+                Gemini API 키 (게시물 생성용)
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Gemini API 키를 입력하세요..."
+                className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+              />
+              <p className="mt-2 text-xs text-notion-muted">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  Google AI Studio
+                </a>
+                에서 발급받을 수 있습니다
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-notion-text mb-2">
+                Perplexity API 키 (정보 조사용)
+              </label>
+              <input
+                type="password"
+                value={perplexityApiKey}
+                onChange={(e) => setPerplexityApiKey(e.target.value)}
+                placeholder="Perplexity API 키를 입력하세요..."
+                className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+              />
+              <p className="mt-2 text-xs text-notion-muted">
+                <a
+                  href="https://www.perplexity.ai/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  Perplexity Settings
+                </a>
+                에서 발급받을 수 있습니다
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Auto Generate Section */}

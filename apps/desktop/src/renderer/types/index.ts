@@ -8,6 +8,7 @@ export interface Post {
 
 export interface AppConfig {
   geminiApiKey: string
+  perplexityApiKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {

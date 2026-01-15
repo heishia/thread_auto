@@ -52,13 +52,8 @@ function GeneratePage(): JSX.Element {
   }, [config?.autoGenerateEnabled, config?.autoGenerateInterval, config?.geminiApiKey])
 
   const handleGenerate = async () => {
-    if (!topic.trim()) {
-      setError('주제를 입력해주세요')
-      return
-    }
-
     console.log('[Frontend] Generate button clicked')
-    console.log('[Frontend] Type:', selectedType, 'Topic:', topic.trim())
+    console.log('[Frontend] Type:', selectedType, 'Topic:', topic.trim() || '(광범위 조사)')
     console.log('[Frontend] Config:', config)
 
     setIsGenerating(true)
@@ -115,9 +110,9 @@ function GeneratePage(): JSX.Element {
         </div>
       )}
 
-      {!config?.geminiApiKey && (
+      {(!config?.geminiApiKey || !config?.perplexityApiKey) && (
         <div className="mb-4 px-3 py-2 bg-yellow-50 text-yellow-700 text-sm rounded">
-          먼저 설정에서 Gemini API 키를 설정해주세요
+          먼저 설정에서 Gemini API 키와 Perplexity API 키를 설정해주세요
         </div>
       )}
 
@@ -151,16 +146,19 @@ function GeneratePage(): JSX.Element {
 
         <div>
           <label className="block text-sm font-medium text-notion-text mb-2">
-            주제
+            주제 (선택사항)
           </label>
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="게시물 주제를 입력하세요..."
+            placeholder="주제를 입력하거나 비워두면 AI가 최신 트렌드를 조사합니다..."
             className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20 disabled:bg-gray-50 disabled:cursor-not-allowed"
             disabled={isGenerating}
           />
+          <p className="mt-2 text-xs text-notion-muted">
+            주제를 비워두면 AI가 최신 AI 및 코딩 트렌드를 광범위하게 조사하여 게시물을 생성합니다
+          </p>
         </div>
 
         {generatingStep && (
@@ -185,7 +183,7 @@ function GeneratePage(): JSX.Element {
 
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !config?.geminiApiKey}
+          disabled={isGenerating || !config?.geminiApiKey || !config?.perplexityApiKey}
           className="w-full px-4 py-3 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isGenerating ? '생성 중...' : '게시물 생성'}

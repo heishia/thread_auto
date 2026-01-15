@@ -11,27 +11,56 @@ import {
   AppConfig
 } from './store'
 
-// 웹 검색을 통해 주제에 대한 정보를 수집하는 함수
-async function searchAndSummarize(apiKey: string, topic: string): Promise<string> {
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
-  const searchPrompt = `주제: ${topic}
-
-위 주제에 대해 다음 정보를 조사해줘:
-
+// Perplexity API를 통해 주제에 대한 정보를 수집하는 함수
+async function searchAndSummarize(perplexityApiKey: string, topic: string | null): Promise<string> {
+  const query = topic 
+    ? `${topic}에 대해 다음 정보를 조사해줘:
 1. 최신 트렌드와 통계 (구체적인 숫자 포함)
 2. 실제 사용 사례와 성과
 3. 놓치기 쉬운 팁이나 숨겨진 기능
 4. 비교 정보 (A vs B, 비포/애프터)
 5. 실용적인 활용 방법
 
-단순한 정의나 개념 설명은 빼고, 바로 써먹을 수 있는 구체적인 정보만 찾아줘.
-한국어로 작성.`
+단순한 정의나 개념 설명은 빼고, 바로 써먹을 수 있는 구체적인 정보만 찾아줘.`
+    : `AI와 코딩, 개발 트렌드, 생산성 도구에 대한 최신 정보를 조사해줘:
+1. 최근 주목받는 AI 도구나 기술
+2. 개발자들 사이에서 화제가 되는 트렌드
+3. 실용적인 코딩 팁이나 생산성 향상 방법
+4. 흥미로운 사용 사례나 성과
+5. 구체적인 숫자와 통계
 
-  const result = await model.generateContent(searchPrompt)
-  const response = await result.response
-  return response.text()
+바로 써먹을 수 있는 구체적이고 실용적인 정보 위주로 찾아줘.`
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${perplexityApiKey}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.1-sonar-large-128k-online',
+      messages: [
+        {
+          role: 'system',
+          content: '당신은 최신 정보를 조사하는 전문 리서처입니다. 구체적이고 실용적인 정보를 한국어로 제공합니다.'
+        },
+        {
+          role: 'user',
+          content: query
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 2000
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Perplexity API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return data.choices[0].message.content
 }
 
 function generateId(): string {
@@ -72,28 +101,6 @@ ${researchInfo}
   return response.text()
 }
 
-// 간단한 게시물 생성 함수 (조사 단계 없이)
-async function generateSimplePost(
-  apiKey: string,
-  prompt: string,
-  topic: string
-): Promise<string> {
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
-  const fullPrompt = `${prompt}
-
-[주제]
-${topic}
-
-프롬프트의 모든 규칙을 엄격히 따라 작성해.
-한국어 반말 사용.
-게시물만 출력해. 다른 설명은 필요 없어.`
-
-  const result = await model.generateContent(fullPrompt)
-  const response = await result.response
-  return response.text()
-}
 
 export function registerIpcHandlers(): void {
   // Config handlers
@@ -130,30 +137,36 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     'generate:post',
     async (_, type: Post['type'], topic: string) => {
-      console.log(`[IPC] generate:post called with type: ${type}, topic: ${topic}`)
+      const topicToUse = topic.trim() || null
+      console.log(`[IPC] generate:post called with type: ${type}, topic: ${topicToUse || '(광범위 조사)'}`)
       const config = getConfig()
-      console.log(`[IPC] Config loaded, API key exists: ${!!config.geminiApiKey}`)
+      console.log(`[IPC] Config loaded, Gemini API key exists: ${!!config.geminiApiKey}, Perplexity API key exists: ${!!config.perplexityApiKey}`)
 
       if (!config.geminiApiKey) {
         console.error('[IPC] Gemini API key is not configured')
         throw new Error('Gemini API key is not configured')
       }
 
+      if (!config.perplexityApiKey) {
+        console.error('[IPC] Perplexity API key is not configured')
+        throw new Error('Perplexity API key is not configured')
+      }
+
       // 기본 프롬프트 + 커스텀 프롬프트 조합
       const prompt = getFullPrompt(type)
       console.log(`[IPC] Prompt loaded, length: ${prompt.length}`)
       
-      // Step 1: AI로 주제에 대한 정보 조사 및 요약
-      console.log(`[Step 1] Researching topic: ${topic}`)
-      const researchInfo = await searchAndSummarize(config.geminiApiKey, topic)
+      // Step 1: Perplexity로 주제에 대한 정보 조사 (주제가 없으면 광범위한 조사)
+      console.log(`[Step 1] Researching topic with Perplexity: ${topicToUse || '(광범위 조사)'}`)
+      const researchInfo = await searchAndSummarize(config.perplexityApiKey, topicToUse)
       console.log(`[Step 1] Research completed, info length: ${researchInfo.length}`)
       
-      // Step 2: 조사된 정보를 바탕으로 게시물 생성
-      console.log(`[Step 2] Generating post with research info`)
+      // Step 2: Gemini로 조사된 정보를 바탕으로 게시물 생성
+      console.log(`[Step 2] Generating post with Gemini`)
       const content = await generatePostWithInfo(
         config.geminiApiKey,
         prompt,
-        topic,
+        topicToUse || '최신 AI 및 코딩 트렌드',
         researchInfo
       )
       console.log(`[Step 2] Post generation completed, content length: ${content.length}`)
@@ -162,45 +175,12 @@ export function registerIpcHandlers(): void {
         id: generateId(),
         type,
         content,
-        topic,
+        topic: topicToUse || '최신 AI 및 코딩 트렌드',
         createdAt: new Date().toISOString()
       }
 
       addPost(post)
       console.log(`[IPC] Post saved with id: ${post.id}`)
-      return post
-    }
-  )
-
-  // Simple generate handler (without research step)
-  ipcMain.handle(
-    'generate:simple',
-    async (_, type: Post['type'], topic: string) => {
-      const config = getConfig()
-
-      if (!config.geminiApiKey) {
-        throw new Error('Gemini API key is not configured')
-      }
-
-      const prompt = getFullPrompt(type)
-      
-      console.log(`[Simple] Generating post for topic: ${topic}`)
-      const content = await generateSimplePost(
-        config.geminiApiKey,
-        prompt,
-        topic
-      )
-      console.log(`[Simple] Post generation completed`)
-
-      const post: Post = {
-        id: generateId(),
-        type,
-        content,
-        topic,
-        createdAt: new Date().toISOString()
-      }
-
-      addPost(post)
       return post
     }
   )
@@ -211,6 +191,10 @@ export function registerIpcHandlers(): void {
 
     if (!config.geminiApiKey) {
       throw new Error('Gemini API key is not configured')
+    }
+
+    if (!config.perplexityApiKey) {
+      throw new Error('Perplexity API key is not configured')
     }
 
     const types: Post['type'][] = ['ag', 'pro', 'br', 'in']
@@ -229,12 +213,12 @@ export function registerIpcHandlers(): void {
     // 기본 프롬프트 + 커스텀 프롬프트 조합
     const prompt = getFullPrompt(randomType)
     
-    // Step 1: AI로 주제에 대한 정보 조사
-    console.log(`[Auto Step 1] Researching topic: ${randomTopic}`)
-    const researchInfo = await searchAndSummarize(config.geminiApiKey, randomTopic)
+    // Step 1: Perplexity로 주제에 대한 정보 조사
+    console.log(`[Auto Step 1] Researching topic with Perplexity: ${randomTopic}`)
+    const researchInfo = await searchAndSummarize(config.perplexityApiKey, randomTopic)
     
-    // Step 2: 조사된 정보를 바탕으로 게시물 생성
-    console.log(`[Auto Step 2] Generating post`)
+    // Step 2: Gemini로 조사된 정보를 바탕으로 게시물 생성
+    console.log(`[Auto Step 2] Generating post with Gemini`)
     const content = await generatePostWithInfo(
       config.geminiApiKey,
       prompt,

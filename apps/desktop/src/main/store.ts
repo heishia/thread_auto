@@ -10,6 +10,7 @@ export interface Post {
 
 export interface AppConfig {
   geminiApiKey: string
+  perplexityApiKey: string
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {
@@ -84,6 +85,7 @@ const store = new Store<StoreSchema>({
   defaults: {
     config: {
       geminiApiKey: '',
+      perplexityApiKey: '',
       autoGenerateEnabled: false,
       autoGenerateInterval: 15,
       prompts: defaultPrompts
