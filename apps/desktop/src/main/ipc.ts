@@ -1,5 +1,4 @@
 import { ipcMain } from 'electron'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import {
   getConfig,
   setConfig,
@@ -140,7 +139,6 @@ ${researchInfo}
       }
     }
   } catch (e) {
-    console.log('[Parse] Failed to parse JSON, using text as mainPost')
   }
   
   return {
@@ -150,87 +148,16 @@ ${researchInfo}
 }
 
 // 수집된 정보를 바탕으로 스레드 형식의 게시물들을 생성하는 함수
-async function generatePostWithInfo(
-  apiKey: string,
-  prompt: string,
-  topic: string,
-  researchInfo: string
-): Promise<{ mainPost: string; thread: string[] }> {
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
-  const fullPrompt = `${prompt}
-
-[주제]
-${topic}
-
-[조사된 정보]
-${researchInfo}
-
-위 정보를 바탕으로 쓰레드(Thread) 형식의 게시물을 작성해.
-
-중요 규칙:
-1. 조사된 정보가 풍부하면 여러 개의 연결된 게시물로 나눠서 작성해 (최대 5개)
-2. 각 게시물은 독립적으로 읽혀도 되지만, 연결되어 하나의 스토리를 만들어야 해
-3. 첫 번째 게시물: 강력한 훅으로 시작, 핵심 메시지 전달
-4. 이후 게시물들: 구체적인 정보, 팁, 사례, 숫자 등을 담아 깊이 있게 전달
-5. 각 게시물은 5-8줄 분량
-6. 실용적이고 바로 써먹을 수 있는 내용 위주
-7. 한국어 반말 사용
-
-출력 형식 (JSON):
-{
-  "mainPost": "첫 번째 게시물 내용",
-  "thread": ["두 번째 게시물", "세 번째 게시물", ...]
-}
-
-정보량이 적으면 mainPost만 작성하고 thread는 빈 배열로 해.
-정보량이 많으면 최대한 유용한 내용을 담아 여러 게시물로 나눠서 작성해.`
-
-  const result = await model.generateContent(fullPrompt)
-  const response = await result.response
-  const text = response.text()
-  
-  try {
-    // JSON 파싱 시도
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      return {
-        mainPost: parsed.mainPost || text,
-        thread: Array.isArray(parsed.thread) ? parsed.thread : []
-      }
-    }
-  } catch (e) {
-    console.log('[Parse] Failed to parse JSON, using text as mainPost')
-  }
-  
-  // JSON 파싱 실패 시 전체를 mainPost로
-  return {
-    mainPost: text,
-    thread: []
-  }
-}
-
-
 export function registerIpcHandlers(): void {
   // Config handlers
   ipcMain.handle('config:get', () => {
     const config = getConfig()
-    console.log('[IPC] config:get called, API key exists:', !!config.geminiApiKey)
     return config
   })
 
   ipcMain.handle('config:set', (_, config: Partial<AppConfig>) => {
-    console.log('[IPC] config:set called with:', { 
-      hasApiKey: !!config.geminiApiKey,
-      apiKeyLength: config.geminiApiKey?.length || 0,
-      autoGenerateEnabled: config.autoGenerateEnabled,
-      autoGenerateInterval: config.autoGenerateInterval
-    })
     setConfig(config)
     const updated = getConfig()
-    console.log('[IPC] config saved, API key exists:', !!updated.geminiApiKey)
     return updated
   })
 
@@ -249,65 +176,30 @@ export function registerIpcHandlers(): void {
     'generate:post',
     async (_, type: Post['type'], topic: string) => {
       const topicToUse = topic.trim() || null
-      console.log(`[IPC] generate:post called with type: ${type}, topic: ${topicToUse || '(광범위 조사)'}`)
       const config = getConfig()
-      console.log(`[IPC] Config loaded, useVertexAI: ${config.useVertexAI}, Gemini API key exists: ${!!config.geminiApiKey}, Perplexity API key exists: ${!!config.perplexityApiKey}`)
 
-      if (config.useVertexAI) {
-        if (!config.gcpProjectId) {
-          console.error('[IPC] GCP Project ID is not configured')
-          throw new Error('GCP Project ID is not configured')
-        }
-        if (!config.gcpApiKey) {
-          console.error('[IPC] GCP API Key is not configured')
-          throw new Error('GCP API Key is not configured')
-        }
-      } else {
-        if (!config.geminiApiKey) {
-          console.error('[IPC] Gemini API key is not configured')
-          throw new Error('Gemini API key is not configured')
-        }
+      if (!config.gcpProjectId) {
+        throw new Error('GCP Project ID is not configured')
+      }
+      if (!config.gcpApiKey) {
+        throw new Error('GCP API Key is not configured')
       }
 
       if (!config.perplexityApiKey) {
-        console.error('[IPC] Perplexity API key is not configured')
         throw new Error('Perplexity API key is not configured')
       }
 
       const prompt = getFullPrompt(type)
-      console.log(`[IPC] Prompt loaded, length: ${prompt.length}`)
       
-      console.log(`[Step 1] Researching topic with Perplexity: ${topicToUse || '(광범위 조사)'}`)
       const researchInfo = await searchAndSummarize(config.perplexityApiKey, topicToUse)
-      console.log(`[Step 1] Research completed, info length: ${researchInfo.length}`)
       
-      let mainPost: string
-      let thread: string[]
-      
-      if (config.useVertexAI) {
-        console.log(`[Step 2] Generating post with Vertex AI (Claude Sonnet 4.5)`)
-        const result = await generatePostWithVertexAI(
-          config.gcpProjectId,
-          config.gcpApiKey,
-          prompt,
-          topicToUse || '최신 AI 및 코딩 트렌드',
-          researchInfo
-        )
-        mainPost = result.mainPost
-        thread = result.thread
-      } else {
-        console.log(`[Step 2] Generating post with Gemini`)
-        const result = await generatePostWithInfo(
-          config.geminiApiKey,
-          prompt,
-          topicToUse || '최신 AI 및 코딩 트렌드',
-          researchInfo
-        )
-        mainPost = result.mainPost
-        thread = result.thread
-      }
-      
-      console.log(`[Step 2] Post generation completed, mainPost length: ${mainPost.length}, thread count: ${thread.length}`)
+      const { mainPost, thread } = await generatePostWithVertexAI(
+        config.gcpProjectId,
+        config.gcpApiKey,
+        prompt,
+        topicToUse || '최신 AI 및 코딩 트렌드',
+        researchInfo
+      )
 
       const post: Post = {
         id: generateId(),
@@ -319,7 +211,6 @@ export function registerIpcHandlers(): void {
       }
 
       addPost(post)
-      console.log(`[IPC] Post saved with id: ${post.id}`)
       return post
     }
   )
@@ -328,17 +219,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('generate:auto', async () => {
     const config = getConfig()
 
-    if (config.useVertexAI) {
-      if (!config.gcpProjectId) {
-        throw new Error('GCP Project ID is not configured')
-      }
-      if (!config.gcpApiKey) {
-        throw new Error('GCP API Key is not configured')
-      }
-    } else {
-      if (!config.geminiApiKey) {
-        throw new Error('Gemini API key is not configured')
-      }
+    if (!config.gcpProjectId) {
+      throw new Error('GCP Project ID is not configured')
+    }
+    if (!config.gcpApiKey) {
+      throw new Error('GCP API Key is not configured')
     }
 
     if (!config.perplexityApiKey) {
@@ -360,34 +245,15 @@ export function registerIpcHandlers(): void {
 
     const prompt = getFullPrompt(randomType)
     
-    console.log(`[Auto Step 1] Researching topic with Perplexity: ${randomTopic}`)
     const researchInfo = await searchAndSummarize(config.perplexityApiKey, randomTopic)
     
-    let mainPost: string
-    let thread: string[]
-    
-    if (config.useVertexAI) {
-      console.log(`[Auto Step 2] Generating post with Vertex AI (Claude Sonnet 4.5)`)
-      const result = await generatePostWithVertexAI(
-        config.gcpProjectId,
-        config.gcpApiKey,
-        prompt,
-        randomTopic,
-        researchInfo
-      )
-      mainPost = result.mainPost
-      thread = result.thread
-    } else {
-      console.log(`[Auto Step 2] Generating post with Gemini`)
-      const result = await generatePostWithInfo(
-        config.geminiApiKey,
-        prompt,
-        randomTopic,
-        researchInfo
-      )
-      mainPost = result.mainPost
-      thread = result.thread
-    }
+    const { mainPost, thread } = await generatePostWithVertexAI(
+      config.gcpProjectId,
+      config.gcpApiKey,
+      prompt,
+      randomTopic,
+      researchInfo
+    )
 
     const post: Post = {
       id: generateId(),

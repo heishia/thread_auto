@@ -10,11 +10,9 @@ export interface Post {
 }
 
 export interface AppConfig {
-  geminiApiKey: string
   perplexityApiKey: string
   gcpProjectId: string
   gcpApiKey: string
-  useVertexAI: boolean
   autoGenerateEnabled: boolean
   autoGenerateInterval: number
   prompts: {
@@ -87,11 +85,9 @@ export function getFullPrompt(type: 'ag' | 'pro' | 'br' | 'in'): string {
 const store = new Store<StoreSchema>({
   defaults: {
     config: {
-      geminiApiKey: '',
       perplexityApiKey: '',
       gcpProjectId: '',
       gcpApiKey: '',
-      useVertexAI: false,
       autoGenerateEnabled: false,
       autoGenerateInterval: 15,
       prompts: defaultPrompts
@@ -128,7 +124,6 @@ function migratePrompts(): void {
   })
 
   if (needsUpdate) {
-    console.log('Migrating prompts to remove common base prompt...')
     store.set('config', { ...config, prompts: migratedPrompts })
   }
 }
