@@ -197,18 +197,20 @@ function PostList(): JSX.Element {
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={bulkCount}
+                  value={bulkCount === 0 ? '' : bulkCount}
                   onChange={(e) => {
                     const value = e.target.value
-                    if (value === '' || /^\d+$/.test(value)) {
-                      const num = value === '' ? 1 : Number(value)
-                      if (num >= 1 && num <= 10) {
+                    if (value === '') {
+                      setBulkCount(0)
+                    } else if (/^\d+$/.test(value)) {
+                      const num = Number(value)
+                      if (num <= 10) {
                         setBulkCount(num)
                       }
                     }
                   }}
                   onBlur={(e) => {
-                    if (e.target.value === '') {
+                    if (e.target.value === '' || Number(e.target.value) === 0) {
                       setBulkCount(1)
                     }
                   }}
