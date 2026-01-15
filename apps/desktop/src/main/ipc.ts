@@ -16,17 +16,18 @@ async function searchAndSummarize(apiKey: string, topic: string): Promise<string
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-  const searchPrompt = `다음 주제에 대해 웹에서 찾을 수 있는 최신 정보, 트렌드, 통계, 획기적인 인사이트를 조사하고 요약해주세요.
-단순한 정의가 아니라, 실용적이고 구체적인 정보를 찾아주세요.
+  const searchPrompt = `주제: ${topic}
 
-주제: ${topic}
+위 주제에 대해 다음 정보를 조사해줘:
 
-다음 형식으로 정리해주세요:
-1. 핵심 정보 (최신 트렌드, 통계, 사실)
-2. 주목할 만한 인사이트
-3. 실용적인 활용 방법이나 팁
+1. 최신 트렌드와 통계 (구체적인 숫자 포함)
+2. 실제 사용 사례와 성과
+3. 놓치기 쉬운 팁이나 숨겨진 기능
+4. 비교 정보 (A vs B, 비포/애프터)
+5. 실용적인 활용 방법
 
-한국어로 작성하세요.`
+단순한 정의나 개념 설명은 빼고, 바로 써먹을 수 있는 구체적인 정보만 찾아줘.
+한국어로 작성.`
 
   const result = await model.generateContent(searchPrompt)
   const response = await result.response
@@ -55,9 +56,16 @@ ${topic}
 [조사된 정보]
 ${researchInfo}
 
-위의 조사된 정보를 바탕으로, 정확하고 획기적인 인사이트를 담은 쓰레드 게시물을 작성하세요.
-정보를 단순히 나열하지 말고, 독창적인 관점과 실용적인 가치를 더해주세요.
-프롬프트의 모든 규칙을 따라 한국어로 작성하세요.`
+위 정보를 바탕으로 쓰레드 게시물을 작성해.
+
+중요:
+- 정보를 나열하지 말고, 독자에게 직접적인 가치를 전달해
+- 첫 줄은 무조건 "이거 모르면 손해" 느낌으로 시작
+- 구체적인 숫자와 결과를 반드시 포함
+- 프롬프트의 모든 규칙을 엄격히 따를 것
+- 한국어 반말 사용
+
+게시물만 출력해. 다른 설명은 필요 없어.`
 
   const result = await model.generateContent(fullPrompt)
   const response = await result.response
@@ -78,7 +86,9 @@ async function generateSimplePost(
 [주제]
 ${topic}
 
-프롬프트의 모든 규칙을 따라 한국어로 작성하세요.`
+프롬프트의 모든 규칙을 엄격히 따라 작성해.
+한국어 반말 사용.
+게시물만 출력해. 다른 설명은 필요 없어.`
 
   const result = await model.generateContent(fullPrompt)
   const response = await result.response
