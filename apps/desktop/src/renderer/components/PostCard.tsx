@@ -4,9 +4,10 @@ interface PostCardProps {
   post: Post
   onDelete: (id: string) => void
   onCopy: (content: string) => void
+  onViewThread?: (post: Post) => void
 }
 
-function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
+function PostCard({ post, onDelete, onCopy, onViewThread }: PostCardProps): JSX.Element {
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleString('ko-KR', {
@@ -37,7 +38,8 @@ function PostCard({ post, onDelete, onCopy }: PostCardProps): JSX.Element {
 
   return (
     <div 
-      className="bg-white border border-notion-border rounded-lg p-4 hover:shadow-sm transition-shadow"
+      className={`bg-white border border-notion-border rounded-lg p-4 hover:shadow-sm transition-shadow ${hasThread ? 'cursor-pointer' : ''}`}
+      onDoubleClick={() => hasThread && onViewThread?.(post)}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">

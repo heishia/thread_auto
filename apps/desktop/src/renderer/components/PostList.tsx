@@ -262,12 +262,15 @@ function PostList(): JSX.Element {
             
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* 첫 번째 게시물 */}
-              <div className="border-l-4 border-blue-500 pl-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 text-xs font-medium text-white rounded ${POST_TYPE_COLORS[selectedPost.type]}`}>
-                    {POST_TYPE_LABELS[selectedPost.type]}
-                  </span>
+              <div className="border-l-4 border-red-500 pl-4 pr-4 relative group">
+                <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-xs text-notion-muted">1/{(selectedPost.thread?.length || 0) + 1}</span>
+                  <button
+                    onClick={() => handleCopy(selectedPost.content)}
+                    className="px-2 py-1 text-xs font-medium text-notion-text bg-notion-sidebar hover:bg-notion-hover rounded transition-colors"
+                  >
+                    복사
+                  </button>
                 </div>
                 <div className="text-sm text-notion-text whitespace-pre-wrap leading-relaxed">
                   {selectedPost.content}
@@ -276,36 +279,21 @@ function PostList(): JSX.Element {
 
               {/* 연결된 게시물들 */}
               {selectedPost.thread && selectedPost.thread.map((threadContent, index) => (
-                <div key={index} className="border-l-4 border-gray-300 pl-4">
-                  <div className="flex items-center gap-2 mb-2">
+                <div key={index} className="border-l-4 border-gray-300 pl-4 pr-4 relative group">
+                  <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs text-notion-muted">{index + 2}/{selectedPost.thread!.length + 1}</span>
+                    <button
+                      onClick={() => handleCopy(threadContent)}
+                      className="px-2 py-1 text-xs font-medium text-notion-text bg-notion-sidebar hover:bg-notion-hover rounded transition-colors"
+                    >
+                      복사
+                    </button>
                   </div>
                   <div className="text-sm text-notion-text whitespace-pre-wrap leading-relaxed">
                     {threadContent}
                   </div>
                 </div>
               ))}
-            </div>
-
-            <div className="p-6 border-t border-notion-border flex gap-3">
-              <button
-                onClick={() => handleCopyThread(selectedPost)}
-                className="flex-1 px-4 py-2 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
-              >
-                전체 복사
-              </button>
-              <button
-                onClick={() => handleCopy(selectedPost.content)}
-                className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
-              >
-                첫 번째만 복사
-              </button>
-              <button
-                onClick={() => setSelectedPost(null)}
-                className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
-              >
-                닫기
-              </button>
             </div>
           </div>
         </div>
