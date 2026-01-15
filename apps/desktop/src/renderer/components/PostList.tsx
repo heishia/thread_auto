@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import PostCard from './PostCard'
-import { Post, PostType, POST_TYPE_LABELS } from '../types'
+import { Post, PostType, POST_TYPE_LABELS, POST_TYPE_COLORS } from '../types'
+import { useGeneration } from '../contexts/GenerationContext'
 
 function PostList(): JSX.Element {
   const [posts, setPosts] = useState<Post[]>([])
@@ -13,6 +14,7 @@ function PostList(): JSX.Element {
   const [useTopicSetting, setUseTopicSetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingProgress, setGeneratingProgress] = useState({ current: 0, total: 0 })
+  const { generatingPosts, addGeneratingPost, updateGeneratingStatus, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
 
   const loadPosts = useCallback(async () => {
     const data = await window.api.posts.get()
@@ -21,7 +23,7 @@ function PostList(): JSX.Element {
 
   useEffect(() => {
     loadPosts()
-  }, [loadPosts])
+  }, [loadPosts, refreshTrigger])
 
   const handleDelete = async (id: string) => {
     await window.api.posts.delete(id)
@@ -51,8 +53,18 @@ function PostList(): JSX.Element {
       if (useTopicSetting && bulkTopic.trim()) {
         // 주제 설정이 있는 경우: 2단계 API 호출 (조사 + 생성)
         const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
+          const tempId = addGeneratingPost(bulkType, bulkTopic.trim())
+          
           try {
+            // 2초 후 상태 변경
+            setTimeout(() => {
+              updateGeneratingStatus(tempId, 'generating')
+            }, 2000)
+            
             const result = await window.api.generate.post(bulkType, bulkTopic.trim())
+            
+            // 완료 후 임시 게시물 제거
+            removeGeneratingPost(tempId)
             
             // 진행 상태 업데이트
             setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
@@ -60,6 +72,7 @@ function PostList(): JSX.Element {
             return result
           } catch (error) {
             console.error(`Failed to generate post ${index + 1}:`, error)
+            removeGeneratingPost(tempId)
             setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
             return null
           }
@@ -68,24 +81,28 @@ function PostList(): JSX.Element {
         await Promise.all(generatePromises)
       } else {
         // 주제 설정이 없는 경우: 일반 로직 (랜덤 주제 + 간단한 생성)
+        const topics = [
+          '바이브 코딩 생산성 팁',
+          '개발자를 위한 AI 도구',
+          'AI로 코딩 배우기',
+          'AI로 프로젝트 빠르게 만들기',
+          '최신 개발 트렌드',
+          '효율적인 코딩 습관',
+          '코드 리뷰 베스트 프랙티스',
+          '개발자 커리어 성장',
+          '오픈소스 기여 방법',
+          '테스트 주도 개발'
+        ]
+        
         const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
+          const randomTopic = topics[Math.floor(Math.random() * topics.length)]
+          const tempId = addGeneratingPost(bulkType, randomTopic)
+          
           try {
-            // 각 게시물에 대해 랜덤 주제 생성
-            const topics = [
-              '바이브 코딩 생산성 팁',
-              '개발자를 위한 AI 도구',
-              'AI로 코딩 배우기',
-              'AI로 프로젝트 빠르게 만들기',
-              '최신 개발 트렌드',
-              '효율적인 코딩 습관',
-              '코드 리뷰 베스트 프랙티스',
-              '개발자 커리어 성장',
-              '오픈소스 기여 방법',
-              '테스트 주도 개발'
-            ]
-            const randomTopic = topics[Math.floor(Math.random() * topics.length)]
-            
             const result = await window.api.generate.simple(bulkType, randomTopic)
+            
+            // 완료 후 임시 게시물 제거
+            removeGeneratingPost(tempId)
             
             // 진행 상태 업데이트
             setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
@@ -93,6 +110,7 @@ function PostList(): JSX.Element {
             return result
           } catch (error) {
             console.error(`Failed to generate post ${index + 1}:`, error)
+            removeGeneratingPost(tempId)
             setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
             return null
           }
@@ -102,7 +120,7 @@ function PostList(): JSX.Element {
       }
       
       // 게시물 목록 새로고침
-      await loadPosts()
+      refreshPosts()
     } catch (error) {
       console.error('Bulk generation failed:', error)
     } finally {
@@ -154,7 +172,7 @@ function PostList(): JSX.Element {
         </span>
       </div>
 
-      {filteredPosts.length === 0 ? (
+      {filteredPosts.length === 0 && generatingPosts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-notion-muted">아직 게시물이 없습니다</p>
           <p className="text-sm text-notion-muted mt-1">
@@ -163,6 +181,37 @@ function PostList(): JSX.Element {
         </div>
       ) : (
         <div className="grid gap-4">
+          {/* 생성 중인 게시물 표시 */}
+          {generatingPosts
+            .filter(gp => filterType === 'all' || gp.type === filterType)
+            .map((generatingPost) => (
+            <div key={generatingPost.id} className="relative">
+              <div className="border border-notion-border rounded-lg p-4 bg-blue-50 animate-pulse">
+                <div className="flex items-start justify-between mb-3">
+                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${POST_TYPE_COLORS[generatingPost.type]} text-white`}>
+                    {POST_TYPE_LABELS[generatingPost.type]}
+                  </span>
+                  <div className="flex items-center gap-2 text-blue-600 text-xs">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="font-medium">
+                      {generatingPost.status === 'researching' ? '정보 조사 중...' : '게시물 생성 중...'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-sm text-notion-muted mb-2">
+                  <strong>주제:</strong> {generatingPost.topic}
+                </div>
+                <div className="text-sm text-blue-600 italic">
+                  AI가 게시물을 작성하고 있습니다. 잠시만 기다려주세요...
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {/* 실제 게시물 표시 */}
           {filteredPosts.map((post) => (
             <div key={post.id} className="relative">
               {copiedId === post.id && (

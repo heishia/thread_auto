@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { PostType, POST_TYPE_LABELS, AppConfig } from '../types'
+import { useGeneration } from '../contexts/GenerationContext'
 
 function GeneratePage(): JSX.Element {
   const [selectedType, setSelectedType] = useState<PostType>('ag')
@@ -11,6 +12,7 @@ function GeneratePage(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [autoStatus, setAutoStatus] = useState<string>('')
   const autoIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const { addGeneratingPost, updateGeneratingStatus, removeGeneratingPost, refreshPosts } = useGeneration()
 
   const loadConfig = useCallback(async () => {
     const cfg = await window.api.config.get()
@@ -60,20 +62,29 @@ function GeneratePage(): JSX.Element {
     setSuccess(false)
     setGeneratingStep('1단계: 주제에 대한 정보 조사 중...')
 
+    // 생성 중인 게시물을 목록에 추가
+    const tempId = addGeneratingPost(selectedType, topic.trim())
+
     try {
-      // 2초 후 2단계로 변경 (실제로는 백엔드에서 처리)
+      // 2초 후 2단계로 변경
       setTimeout(() => {
-        if (isGenerating) {
-          setGeneratingStep('2단계: 게시물 생성 중...')
-        }
+        setGeneratingStep('2단계: 게시물 생성 중...')
+        updateGeneratingStatus(tempId, 'generating')
       }, 3000)
 
       await window.api.generate.post(selectedType, topic.trim())
+      
+      // 생성 완료 후 임시 게시물 제거 및 목록 새로고침
+      removeGeneratingPost(tempId)
+      refreshPosts()
+      
       setSuccess(true)
       setTopic('')
       setGeneratingStep('')
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
+      // 에러 발생 시 임시 게시물 제거
+      removeGeneratingPost(tempId)
       setError(err instanceof Error ? err.message : '생성에 실패했습니다')
       setGeneratingStep('')
     } finally {

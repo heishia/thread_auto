@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import PostList from './components/PostList'
 import GeneratePage from './components/GeneratePage'
 import SettingsPage from './components/SettingsPage'
+import { GenerationProvider } from './contexts/GenerationContext'
 
 type Page = 'posts' | 'generate' | 'settings'
 
@@ -23,12 +24,14 @@ function App(): JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-      <main className="flex-1 overflow-auto bg-white">
-        {renderPage()}
-      </main>
-    </div>
+    <GenerationProvider>
+      <div className="flex h-screen w-screen overflow-hidden">
+        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+        <main className="flex-1 overflow-auto bg-white">
+          {renderPage()}
+        </main>
+      </div>
+    </GenerationProvider>
   )
 }
 
