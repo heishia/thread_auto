@@ -9,6 +9,8 @@ function PostList(): JSX.Element {
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkType, setBulkType] = useState<PostType>('ag')
   const [bulkCount, setBulkCount] = useState(3)
+  const [bulkTopic, setBulkTopic] = useState('')
+  const [useTopicSetting, setUseTopicSetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingProgress, setGeneratingProgress] = useState({ current: 0, total: 0 })
 
@@ -46,38 +48,58 @@ function PostList(): JSX.Element {
     setShowBulkModal(false)
 
     try {
-      // 병렬로 여러 게시물 생성
-      const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
-        try {
-          // 각 게시물에 대해 랜덤 주제 생성
-          const topics = [
-            '바이브 코딩 생산성 팁',
-            '개발자를 위한 AI 도구',
-            'AI로 코딩 배우기',
-            'AI로 프로젝트 빠르게 만들기',
-            '최신 개발 트렌드',
-            '효율적인 코딩 습관',
-            '코드 리뷰 베스트 프랙티스',
-            '개발자 커리어 성장',
-            '오픈소스 기여 방법',
-            '테스트 주도 개발'
-          ]
-          const randomTopic = topics[Math.floor(Math.random() * topics.length)]
-          
-          const result = await window.api.generate.post(bulkType, randomTopic)
-          
-          // 진행 상태 업데이트
-          setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-          
-          return result
-        } catch (error) {
-          console.error(`Failed to generate post ${index + 1}:`, error)
-          setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-          return null
-        }
-      })
+      if (useTopicSetting && bulkTopic.trim()) {
+        // 주제 설정이 있는 경우: 2단계 API 호출 (조사 + 생성)
+        const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
+          try {
+            const result = await window.api.generate.post(bulkType, bulkTopic.trim())
+            
+            // 진행 상태 업데이트
+            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
+            
+            return result
+          } catch (error) {
+            console.error(`Failed to generate post ${index + 1}:`, error)
+            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
+            return null
+          }
+        })
 
-      await Promise.all(generatePromises)
+        await Promise.all(generatePromises)
+      } else {
+        // 주제 설정이 없는 경우: 일반 로직 (랜덤 주제 + 간단한 생성)
+        const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
+          try {
+            // 각 게시물에 대해 랜덤 주제 생성
+            const topics = [
+              '바이브 코딩 생산성 팁',
+              '개발자를 위한 AI 도구',
+              'AI로 코딩 배우기',
+              'AI로 프로젝트 빠르게 만들기',
+              '최신 개발 트렌드',
+              '효율적인 코딩 습관',
+              '코드 리뷰 베스트 프랙티스',
+              '개발자 커리어 성장',
+              '오픈소스 기여 방법',
+              '테스트 주도 개발'
+            ]
+            const randomTopic = topics[Math.floor(Math.random() * topics.length)]
+            
+            const result = await window.api.generate.simple(bulkType, randomTopic)
+            
+            // 진행 상태 업데이트
+            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
+            
+            return result
+          } catch (error) {
+            console.error(`Failed to generate post ${index + 1}:`, error)
+            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
+            return null
+          }
+        })
+
+        await Promise.all(generatePromises)
+      }
       
       // 게시물 목록 새로고침
       await loadPosts()
@@ -86,6 +108,8 @@ function PostList(): JSX.Element {
     } finally {
       setIsGenerating(false)
       setGeneratingProgress({ current: 0, total: 0 })
+      setBulkTopic('')
+      setUseTopicSetting(false)
     }
   }
 
@@ -221,6 +245,48 @@ function PostList(): JSX.Element {
                 </p>
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-notion-text">
+                    주제 설정
+                  </label>
+                  <button
+                    onClick={() => {
+                      setUseTopicSetting(!useTopicSetting)
+                      if (useTopicSetting) {
+                        setBulkTopic('')
+                      }
+                    }}
+                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                      useTopicSetting
+                        ? 'bg-notion-text text-white'
+                        : 'bg-notion-sidebar text-notion-muted hover:bg-notion-hover'
+                    }`}
+                  >
+                    {useTopicSetting ? '사용' : '사용 안 함'}
+                  </button>
+                </div>
+                {useTopicSetting && (
+                  <div>
+                    <input
+                      type="text"
+                      value={bulkTopic}
+                      onChange={(e) => setBulkTopic(e.target.value)}
+                      placeholder="주제를 입력하세요..."
+                      className="w-full px-4 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                    />
+                    <p className="mt-1 text-xs text-notion-muted">
+                      주제를 설정하면 AI가 주제를 조사한 후 게시물을 생성합니다 (2단계)
+                    </p>
+                  </div>
+                )}
+                {!useTopicSetting && (
+                  <p className="text-xs text-notion-muted">
+                    랜덤 주제로 빠르게 생성됩니다
+                  </p>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleBulkGenerate}
@@ -229,7 +295,11 @@ function PostList(): JSX.Element {
                   생성하기
                 </button>
                 <button
-                  onClick={() => setShowBulkModal(false)}
+                  onClick={() => {
+                    setShowBulkModal(false)
+                    setBulkTopic('')
+                    setUseTopicSetting(false)
+                  }}
                   className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
                 >
                   취소

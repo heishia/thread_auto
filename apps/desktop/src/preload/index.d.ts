@@ -34,6 +34,7 @@ declare global {
       }
       generate: {
         post: (type: Post['type'], topic: string) => Promise<Post>
+        simple: (type: Post['type'], topic: string) => Promise<Post>
         auto: () => Promise<Post>
       }
     }

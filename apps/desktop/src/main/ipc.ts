@@ -64,6 +64,27 @@ ${researchInfo}
   return response.text()
 }
 
+// 간단한 게시물 생성 함수 (조사 단계 없이)
+async function generateSimplePost(
+  apiKey: string,
+  prompt: string,
+  topic: string
+): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  const fullPrompt = `${prompt}
+
+[주제]
+${topic}
+
+프롬프트의 모든 규칙을 따라 한국어로 작성하세요.`
+
+  const result = await model.generateContent(fullPrompt)
+  const response = await result.response
+  return response.text()
+}
+
 export function registerIpcHandlers(): void {
   // Config handlers
   ipcMain.handle('config:get', () => {
@@ -112,6 +133,39 @@ export function registerIpcHandlers(): void {
         researchInfo
       )
       console.log(`[Step 2] Post generation completed`)
+
+      const post: Post = {
+        id: generateId(),
+        type,
+        content,
+        topic,
+        createdAt: new Date().toISOString()
+      }
+
+      addPost(post)
+      return post
+    }
+  )
+
+  // Simple generate handler (without research step)
+  ipcMain.handle(
+    'generate:simple',
+    async (_, type: Post['type'], topic: string) => {
+      const config = getConfig()
+
+      if (!config.geminiApiKey) {
+        throw new Error('Gemini API key is not configured')
+      }
+
+      const prompt = getFullPrompt(type)
+      
+      console.log(`[Simple] Generating post for topic: ${topic}`)
+      const content = await generateSimplePost(
+        config.geminiApiKey,
+        prompt,
+        topic
+      )
+      console.log(`[Simple] Post generation completed`)
 
       const post: Post = {
         id: generateId(),

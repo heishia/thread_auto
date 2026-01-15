@@ -62,6 +62,42 @@ const store = new Store<StoreSchema>({
   }
 })
 
+// 기존 프롬프트에서 공통 부분을 제거하는 마이그레이션
+function migratePrompts(): void {
+  const config = store.get('config')
+  const prompts = config.prompts
+  let needsUpdate = false
+
+  // 각 타입별로 기본 프롬프트가 포함되어 있으면 제거
+  const types: Array<'ag' | 'pro' | 'br' | 'in'> = ['ag', 'pro', 'br', 'in']
+  const migratedPrompts = { ...prompts }
+
+  types.forEach(type => {
+    const prompt = prompts[type]
+    // [Role], [Style], [Rules]가 포함되어 있으면 제거
+    if (prompt.includes('[Role]') || prompt.includes('[Style]') || prompt.includes('[Rules]')) {
+      // [Type]으로 시작하는 부분만 추출
+      const typeMatch = prompt.match(/\[Type\][^\[]*/)
+      if (typeMatch) {
+        migratedPrompts[type] = typeMatch[0].trim()
+        needsUpdate = true
+      } else {
+        // [Type]이 없으면 기본값으로 리셋
+        migratedPrompts[type] = defaultPrompts[type]
+        needsUpdate = true
+      }
+    }
+  })
+
+  if (needsUpdate) {
+    console.log('Migrating prompts to remove common base prompt...')
+    store.set('config', { ...config, prompts: migratedPrompts })
+  }
+}
+
+// 앱 시작 시 마이그레이션 실행
+migratePrompts()
+
 export function getConfig(): AppConfig {
   return store.get('config')
 }
