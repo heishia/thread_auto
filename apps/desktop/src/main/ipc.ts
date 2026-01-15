@@ -152,7 +152,7 @@ ${researchInfo}
 중요 규칙:
 1. 조사된 정보가 풍부하면 여러 개의 연결된 게시물로 나눠서 작성해 (최대 5개)
 2. 각 게시물은 독립적으로 읽혀도 되지만, 연결되어 하나의 스토리를 만들어야 해
-3. 첫 번째 게시물: 강력한 훅으로 시작, 핵심 메시지 전달
+3. 첫 번째 게시물: 강력한 훅으로 시작, 핵심 메시지 전달 (5줄이내로 구성)
 4. 이후 게시물들: 구체적인 정보, 팁, 사례, 숫자 등을 담아 깊이 있게 전달
 5. 각 게시물은 5-8줄 분량
 6. 실용적이고 바로 써먹을 수 있는 내용 위주
@@ -168,7 +168,9 @@ ${researchInfo}
 정보량이 많으면 최대한 유용한 내용을 담아 여러 게시물로 나눠서 작성해.`
 
   const accessToken = await getAccessToken(serviceAccountKey)
-  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/us-east5/publishers/anthropic/models/claude-sonnet-4-5@20250929:streamRawPredict`
+  const location = 'us-central1'
+  const modelId = 'gemini-3-pro-preview'
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/${location}/publishers/google/models/${modelId}:generateContent`
   
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -177,15 +179,18 @@ ${researchInfo}
       'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify({
-      anthropic_version: 'vertex-2023-10-16',
-      messages: [
+      contents: [
         {
           role: 'user',
-          content: fullPrompt
+          parts: [
+            { text: fullPrompt }
+          ]
         }
       ],
-      max_tokens: 4096,
-      stream: false
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7
+      }
     })
   })
 
@@ -195,7 +200,7 @@ ${researchInfo}
   }
 
   const data = await response.json()
-  const text = data.content[0].text
+  const text = data.candidates[0].content.parts[0].text
   
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/)
