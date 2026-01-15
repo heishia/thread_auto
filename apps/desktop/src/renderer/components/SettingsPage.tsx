@@ -122,9 +122,13 @@ function SettingsPage(): JSX.Element {
         {/* Prompts Section */}
         <section>
           <h3 className="text-lg font-medium text-notion-text mb-3">프롬프트 템플릿</h3>
-          <p className="text-sm text-notion-muted mb-4">
+          <p className="text-sm text-notion-muted mb-2">
             각 게시물 유형별 프롬프트를 커스터마이징하세요
           </p>
+          <div className="mb-4 px-3 py-2 bg-blue-50 text-blue-700 text-xs rounded">
+            💡 기본 프롬프트(Role, Style, Rules)는 모든 타입에 자동으로 적용됩니다. 
+            여기서는 각 타입별 추가 지침만 수정하세요.
+          </div>
 
           <div className="flex gap-2 mb-4 flex-wrap">
             {types.map((type) => (
@@ -145,7 +149,8 @@ function SettingsPage(): JSX.Element {
           <textarea
             value={prompts[activePromptTab]}
             onChange={(e) => handlePromptChange(activePromptTab, e.target.value)}
-            rows={12}
+            rows={8}
+            placeholder="이 타입에 대한 추가 지침을 입력하세요..."
             className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20 resize-none"
           />
         </section>

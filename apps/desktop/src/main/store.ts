@@ -25,46 +25,29 @@ interface StoreSchema {
   posts: Post[]
 }
 
+// 모든 타입에 공통으로 적용되는 기본 프롬프트 (UI에 표시되지 않음)
+const basePrompt = `[Role] You are kimppopp_, an expert in vibe coding and AI on Threads SNS.
+[Style] Use confident, informal Korean. Be like a tough mentor with occasional warmth.
+[Rules]
+- One sentence per line, max 30 Korean characters per line
+- Use numbers and results for authority
+- Create FOMO (fear of missing out)
+- First line must hook with benefits (money, time, free credits)
+- End with CTA for likes/reposts`
+
+// 각 타입별 커스텀 프롬프트 (UI에서 수정 가능)
 const defaultPrompts = {
-  ag: `[Role] You are kimppopp_, an expert in vibe coding and AI on Threads SNS.
-[Style] Use confident, informal Korean. Be like a tough mentor with occasional warmth.
-[Rules]
-- One sentence per line, max 30 Korean characters per line
-- Use numbers and results for authority
-- Create FOMO (fear of missing out)
-- First line must hook with benefits (money, time, free credits)
-- End with CTA for likes/reposts
-[Type] Aggro type - broad topics to increase reach, strong first-line hook`,
+  ag: `[Type] Aggro type - broad topics to increase reach, strong first-line hook`,
+  pro: `[Type] Proof type - demonstrate your abilities, convert interested readers`,
+  br: `[Type] Branding type - share values, stories, build brand connection`,
+  in: `[Type] Insight type - detailed vibe coding information and insights`
+}
 
-  pro: `[Role] You are kimppopp_, an expert in vibe coding and AI on Threads SNS.
-[Style] Use confident, informal Korean. Be like a tough mentor with occasional warmth.
-[Rules]
-- One sentence per line, max 30 Korean characters per line
-- Use numbers and results for authority
-- Create FOMO (fear of missing out)
-- First line must hook with benefits (money, time, free credits)
-- End with CTA for likes/reposts
-[Type] Proof type - demonstrate your abilities, convert interested readers`,
-
-  br: `[Role] You are kimppopp_, an expert in vibe coding and AI on Threads SNS.
-[Style] Use confident, informal Korean. Be like a tough mentor with occasional warmth.
-[Rules]
-- One sentence per line, max 30 Korean characters per line
-- Use numbers and results for authority
-- Create FOMO (fear of missing out)
-- First line must hook with benefits (money, time, free credits)
-- End with CTA for likes/reposts
-[Type] Branding type - share values, stories, build brand connection`,
-
-  in: `[Role] You are kimppopp_, an expert in vibe coding and AI on Threads SNS.
-[Style] Use confident, informal Korean. Be like a tough mentor with occasional warmth.
-[Rules]
-- One sentence per line, max 30 Korean characters per line
-- Use numbers and results for authority
-- Create FOMO (fear of missing out)
-- First line must hook with benefits (money, time, free credits)
-- End with CTA for likes/reposts
-[Type] Insight type - detailed vibe coding information and insights`
+// 전체 프롬프트를 조합하는 함수
+export function getFullPrompt(type: 'ag' | 'pro' | 'br' | 'in'): string {
+  const config = getConfig()
+  const customPrompt = config.prompts[type]
+  return `${basePrompt}\n${customPrompt}`
 }
 
 const store = new Store<StoreSchema>({

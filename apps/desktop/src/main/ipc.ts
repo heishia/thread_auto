@@ -6,6 +6,7 @@ import {
   getPosts,
   addPost,
   deletePost,
+  getFullPrompt,
   Post,
   AppConfig
 } from './store'
@@ -94,7 +95,8 @@ export function registerIpcHandlers(): void {
         throw new Error('Gemini API key is not configured')
       }
 
-      const prompt = config.prompts[type]
+      // 기본 프롬프트 + 커스텀 프롬프트 조합
+      const prompt = getFullPrompt(type)
       
       // Step 1: AI로 주제에 대한 정보 조사 및 요약
       console.log(`[Step 1] Researching topic: ${topic}`)
@@ -145,7 +147,8 @@ export function registerIpcHandlers(): void {
     const randomType = types[Math.floor(Math.random() * types.length)]
     const randomTopic = topics[Math.floor(Math.random() * topics.length)]
 
-    const prompt = config.prompts[randomType]
+    // 기본 프롬프트 + 커스텀 프롬프트 조합
+    const prompt = getFullPrompt(randomType)
     
     // Step 1: AI로 주제에 대한 정보 조사
     console.log(`[Auto Step 1] Researching topic: ${randomTopic}`)

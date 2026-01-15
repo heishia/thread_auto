@@ -195,11 +195,23 @@ function PostList(): JSX.Element {
                   생성할 개수
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={bulkCount}
-                  onChange={(e) => setBulkCount(Math.max(1, Math.min(10, Number(e.target.value))))}
-                  min={1}
-                  max={10}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || /^\d+$/.test(value)) {
+                      const num = value === '' ? 1 : Number(value)
+                      if (num >= 1 && num <= 10) {
+                        setBulkCount(num)
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '') {
+                      setBulkCount(1)
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
                 />
                 <p className="mt-1 text-xs text-notion-muted">
