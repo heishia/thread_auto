@@ -1,0 +1,169 @@
+import { useState, useEffect, useCallback } from 'react'
+import { AppConfig, PostType, POST_TYPE_LABELS } from '../types'
+
+function SettingsPage(): JSX.Element {
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [apiKey, setApiKey] = useState('')
+  const [autoEnabled, setAutoEnabled] = useState(false)
+  const [autoInterval, setAutoInterval] = useState(15)
+  const [prompts, setPrompts] = useState<AppConfig['prompts'] | null>(null)
+  const [activePromptTab, setActivePromptTab] = useState<PostType>('ag')
+  const [saved, setSaved] = useState(false)
+
+  const loadConfig = useCallback(async () => {
+    const cfg = await window.api.config.get()
+    setConfig(cfg)
+    setApiKey(cfg.geminiApiKey)
+    setAutoEnabled(cfg.autoGenerateEnabled)
+    setAutoInterval(cfg.autoGenerateInterval)
+    setPrompts(cfg.prompts)
+  }, [])
+
+  useEffect(() => {
+    loadConfig()
+  }, [loadConfig])
+
+  const handleSave = async () => {
+    await window.api.config.set({
+      geminiApiKey: apiKey,
+      autoGenerateEnabled: autoEnabled,
+      autoGenerateInterval: autoInterval,
+      prompts: prompts || config?.prompts
+    })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handlePromptChange = (type: PostType, value: string) => {
+    if (prompts) {
+      setPrompts({ ...prompts, [type]: value })
+    }
+  }
+
+  const types: PostType[] = ['ag', 'pro', 'br', 'in']
+
+  if (!config || !prompts) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-notion-muted">Loading...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-notion-text mb-2">Settings</h2>
+        <p className="text-sm text-notion-muted">Configure your ThreadAuto preferences</p>
+      </div>
+
+      <div className="space-y-8">
+        {/* API Key Section */}
+        <section>
+          <h3 className="text-lg font-medium text-notion-text mb-3">Gemini API Key</h3>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter your Gemini API key..."
+            className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+          />
+          <p className="mt-2 text-xs text-notion-muted">
+            Get your API key from{' '}
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              Google AI Studio
+            </a>
+          </p>
+        </section>
+
+        {/* Auto Generate Section */}
+        <section>
+          <h3 className="text-lg font-medium text-notion-text mb-3">Auto Generate</h3>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoEnabled}
+                onChange={(e) => setAutoEnabled(e.target.checked)}
+                className="w-4 h-4 rounded border-notion-border text-notion-text focus:ring-notion-text"
+              />
+              <span className="text-sm text-notion-text">
+                Enable automatic post generation
+              </span>
+            </label>
+
+            {autoEnabled && (
+              <div>
+                <label className="block text-sm text-notion-muted mb-2">
+                  Generate every (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={autoInterval}
+                  onChange={(e) => setAutoInterval(Number(e.target.value))}
+                  min={1}
+                  max={120}
+                  className="w-32 px-3 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                />
+                <p className="mt-1 text-xs text-notion-muted">
+                  Recommended: 15 minutes (4 posts per hour)
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Prompts Section */}
+        <section>
+          <h3 className="text-lg font-medium text-notion-text mb-3">Prompt Templates</h3>
+          <p className="text-sm text-notion-muted mb-4">
+            Customize the prompts for each post type
+          </p>
+
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {types.map((type) => (
+              <button
+                key={type}
+                onClick={() => setActivePromptTab(type)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  activePromptTab === type
+                    ? 'bg-notion-text text-white'
+                    : 'bg-notion-sidebar text-notion-muted hover:bg-notion-hover'
+                }`}
+              >
+                {POST_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={prompts[activePromptTab]}
+            onChange={(e) => handlePromptChange(activePromptTab, e.target.value)}
+            rows={12}
+            className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20 resize-none"
+          />
+        </section>
+
+        {/* Save Button */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleSave}
+            className="px-6 py-3 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
+          >
+            Save Settings
+          </button>
+          {saved && (
+            <span className="text-sm text-green-600">Settings saved!</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default SettingsPage

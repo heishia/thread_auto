@@ -1,0 +1,23 @@
+appId: com.threadauto.app
+productName: ThreadAuto
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.*'
+  - '!{.eslintrc,.gitignore,tsconfig*.json}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: ThreadAuto
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
