@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import PostList from './components/PostList'
-import GeneratePage from './components/GeneratePage'
 import SettingsPage from './components/SettingsPage'
 import { GenerationProvider } from './contexts/GenerationContext'
 
-type Page = 'posts' | 'generate' | 'settings'
+type Page = 'posts' | 'settings'
 
 function App(): JSX.Element {
   const [currentPage, setCurrentPage] = useState<Page>('posts')
@@ -14,8 +13,6 @@ function App(): JSX.Element {
     switch (currentPage) {
       case 'posts':
         return <PostList />
-      case 'generate':
-        return <GeneratePage />
       case 'settings':
         return <SettingsPage />
       default:

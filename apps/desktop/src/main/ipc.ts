@@ -300,27 +300,17 @@ export function registerIpcHandlers(): void {
     }
 
     const types: Post['type'][] = ['ag', 'pro', 'br', 'in']
-    const topics = [
-      '바이브 코딩 생산성 팁',
-      '개발자를 위한 AI 도구',
-      'AI로 코딩 배우기',
-      'AI로 프로젝트 빠르게 만들기',
-      '최신 개발 트렌드',
-      '효율적인 코딩 습관'
-    ]
-
     const randomType = types[Math.floor(Math.random() * types.length)]
-    const randomTopic = topics[Math.floor(Math.random() * topics.length)]
 
     const prompt = getFullPrompt(randomType)
     
-    const researchInfo = await searchAndSummarize(config.perplexityApiKey, randomTopic)
+    const researchInfo = await searchAndSummarize(config.perplexityApiKey, null)
     
     const { mainPost, thread } = await generatePostWithVertexAI(
       config.gcpProjectId,
       config.gcpServiceAccountKey,
       prompt,
-      randomTopic,
+      '최신 AI 및 코딩 트렌드',
       researchInfo
     )
 
@@ -328,7 +318,7 @@ export function registerIpcHandlers(): void {
       id: generateId(),
       type: randomType,
       content: mainPost,
-      topic: randomTopic,
+      topic: '최신 AI 및 코딩 트렌드',
       createdAt: new Date().toISOString(),
       thread: thread.length > 0 ? thread : undefined
     }

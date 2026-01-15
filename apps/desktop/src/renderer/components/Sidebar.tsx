@@ -1,12 +1,11 @@
 interface SidebarProps {
-  currentPage: 'posts' | 'generate' | 'settings'
-  onPageChange: (page: 'posts' | 'generate' | 'settings') => void
+  currentPage: 'posts' | 'settings'
+  onPageChange: (page: 'posts' | 'settings') => void
 }
 
 function Sidebar({ currentPage, onPageChange }: SidebarProps): JSX.Element {
   const navItems = [
     { id: 'posts' as const, label: '게시물', icon: '📝' },
-    { id: 'generate' as const, label: '생성하기', icon: '✨' },
     { id: 'settings' as const, label: '설정', icon: '⚙️' }
   ]
 
