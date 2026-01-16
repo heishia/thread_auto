@@ -1,6 +1,6 @@
 {
   "name": "thread-auto-monorepo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Thread post auto generator - monorepo",
   "private": true,
   "workspaces": [
