@@ -61,73 +61,22 @@ function PostList(): JSX.Element {
     setGeneratingProgress({ current: 0, total: bulkCount })
     setShowBulkModal(false)
 
+    const tempIds: string[] = []
+    for (let i = 0; i < bulkCount; i++) {
+      const tempId = addGeneratingPost(bulkType, useTopicSetting && bulkTopic.trim() ? bulkTopic.trim() : '주제 선정 중...')
+      tempIds.push(tempId)
+    }
+
     try {
-      if (useTopicSetting && bulkTopic.trim()) {
-        // 주제 설정이 있는 경우: 2단계 API 호출 (조사 + 생성)
-        const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
-          const tempId = addGeneratingPost(bulkType, bulkTopic.trim())
-          
-          try {
-            // 2초 후 상태 변경
-            setTimeout(() => {
-              updateGeneratingStatus(tempId, 'generating')
-            }, 2000)
-            
-            const result = await window.api.generate.post(bulkType, bulkTopic.trim())
-            
-            // 완료 후 임시 게시물 제거
-            removeGeneratingPost(tempId)
-            
-            // 진행 상태 업데이트
-            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-            
-            return result
-          } catch (error) {
-            console.error(`Failed to generate post ${index + 1}:`, error)
-            removeGeneratingPost(tempId)
-            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-            return null
-          }
-        })
-
-        await Promise.all(generatePromises)
-      } else {
-        // 주제 설정이 없는 경우: 빈 주제로 광범위한 조사 진행
-        const generatePromises = Array.from({ length: bulkCount }, async (_, index) => {
-          const tempId = addGeneratingPost(bulkType, '최신 AI 및 코딩 트렌드')
-          
-          try {
-            // 2초 후 상태 변경
-            setTimeout(() => {
-              updateGeneratingStatus(tempId, 'generating')
-            }, 2000)
-            
-            // 빈 주제로 광범위한 조사 + 생성
-            const result = await window.api.generate.post(bulkType, '')
-            
-            // 완료 후 임시 게시물 제거
-            removeGeneratingPost(tempId)
-            
-            // 진행 상태 업데이트
-            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-            
-            return result
-          } catch (error) {
-            console.error(`Failed to generate post ${index + 1}:`, error)
-            removeGeneratingPost(tempId)
-            setGeneratingProgress((prev) => ({ ...prev, current: prev.current + 1 }))
-            return null
-          }
-        })
-
-        await Promise.all(generatePromises)
-      }
+      const topic = useTopicSetting && bulkTopic.trim() ? bulkTopic.trim() : ''
+      const posts = await window.api.generate.bulk(bulkType, bulkCount, topic)
       
-      // 게시물 목록 새로고침
+      setGeneratingProgress({ current: posts.length, total: bulkCount })
       refreshPosts()
     } catch (error) {
       console.error('Bulk generation failed:', error)
     } finally {
+      tempIds.forEach(id => removeGeneratingPost(id))
       setIsGenerating(false)
       setGeneratingProgress({ current: 0, total: 0 })
       setBulkTopic('')

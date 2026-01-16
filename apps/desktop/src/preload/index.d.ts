@@ -37,6 +37,7 @@ declare global {
       }
       generate: {
         post: (type: Post['type'], topic: string) => Promise<Post>
+        bulk: (type: Post['type'], count: number, topic: string) => Promise<Post[]>
         auto: () => Promise<Post>
       }
     }

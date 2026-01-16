@@ -37,6 +37,8 @@ const api = {
   generate: {
     post: (type: Post['type'], topic: string): Promise<Post> =>
       ipcRenderer.invoke('generate:post', type, topic),
+    bulk: (type: Post['type'], count: number, topic: string): Promise<Post[]> =>
+      ipcRenderer.invoke('generate:bulk', type, count, topic),
     auto: (): Promise<Post> => ipcRenderer.invoke('generate:auto')
   }
 }
