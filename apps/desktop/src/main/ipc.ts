@@ -157,7 +157,7 @@ JSON 형식으로만 응답해:
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
         temperature: 0.9
       }
     })
@@ -170,11 +170,28 @@ JSON 형식으로만 응답해:
 
   const data = await response.json()
   
-  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+  console.log('=== Vertex AI Topic Generation Response ===')
+  console.log(JSON.stringify(data, null, 2))
+  
+  if (!data.candidates || !data.candidates[0]) {
+    console.error('Invalid response structure:', JSON.stringify(data, null, 2))
+    throw new Error('주제 선정 실패: AI 응답이 없습니다')
+  }
+
+  const candidate = data.candidates[0]
+  
+  if (candidate.finishReason === 'MAX_TOKENS') {
+    throw new Error('주제 선정 실패: 토큰 제한 초과 (응답이 잘렸습니다)')
+  }
+  
+  if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+    console.error('Invalid response structure:', JSON.stringify(data, null, 2))
     throw new Error('주제 선정 실패: AI 응답 형식이 올바르지 않습니다')
   }
   
-  const text = data.candidates[0].content.parts[0].text
+  const text = candidate.content.parts[0].text
+  console.log('=== Extracted Text ===')
+  console.log(text)
 
   const jsonMatch = text.match(/\[[\s\S]*\]/)
   if (!jsonMatch) {
@@ -325,6 +342,9 @@ ${researchInfo}
 스레드 규칙:
 1. 조사된 정보가 풍부하면 여러 개의 연결된 게시물로 나눠서 작성해 (최대 5개)
 2. 각 게시물은 독립적으로 읽혀도 되지만, 연결되어 하나의 스토리를 만들어야 해
+
+중요한 제약사항:
+- 게시글에 "2026년"을 직접 쓰지마.
 
 출력 형식 (JSON):
 {
