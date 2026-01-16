@@ -11,6 +11,9 @@ files:
   - '!src/*'
   - '!electron.vite.config.*'
   - '!{.eslintrc*,.gitignore,tsconfig*.json}'
+extraResources:
+  - from: ../../asset/favicon.ico
+    to: asset/favicon.ico
 asarUnpack:
   - resources/**
 win:

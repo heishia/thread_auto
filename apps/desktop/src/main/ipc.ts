@@ -282,7 +282,6 @@ ${researchInfo}
   }
 }
 
-// 수집된 정보를 바탕으로 스레드 형식의 게시물들을 생성하는 함수
 export function registerIpcHandlers(): void {
   // Config handlers
   ipcMain.handle('config:get', () => {

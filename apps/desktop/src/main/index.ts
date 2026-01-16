@@ -3,6 +3,13 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 
+function getIconPath(): string {
+  if (is.dev) {
+    return join(__dirname, '../../../../asset/favicon.ico')
+  }
+  return join(process.resourcesPath, 'asset/favicon.ico')
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -11,6 +18,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
+    icon: getIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false
