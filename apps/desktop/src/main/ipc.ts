@@ -13,7 +13,6 @@ import {
 interface TopicItem {
   topic: string
   angle: string
-  keywords: string[]
 }
 
 function getCurrentDateString(): string {
@@ -47,8 +46,7 @@ JSON 형식으로만 응답해:
 [
   {
     "topic": "주제명",
-    "angle": "이 주제를 다룰 구체적인 관점/각도",
-    "keywords": ["검색키워드1", "검색키워드2", "검색키워드3"]
+    "angle": "이 주제를 다룰 구체적인 관점/각도"
   }
 ]`
 
@@ -94,13 +92,10 @@ async function searchWithTopic(
   const currentDate = getCurrentDateString()
   const query = `${currentDate} 기준, "${topicItem.topic}"에 대해 "${topicItem.angle}" 관점에서 조사해줘.
 
-검색 키워드: ${topicItem.keywords.join(', ')}
-
 찾아야 할 정보:
-1. 최신 트렌드와 구체적인 통계/숫자
-2. 실제 사용 사례와 성과
-3. 실용적인 활용 팁
-4. 비교 정보나 인사이트
+1. 실제 사용 사례와 성과
+2. 실용적인 활용 팁
+3. 비교 정보나 인사이트
 
 단순한 정의 설명은 빼고, 바로 써먹을 수 있는 구체적인 정보만 찾아줘.`
 
@@ -120,55 +115,6 @@ async function searchWithTopic(
         { role: 'user', content: query }
       ],
       temperature: 0.3,
-      max_tokens: 2000
-    })
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Perplexity API error: ${response.status} - ${errorText}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content
-}
-
-async function searchAndSummarize(perplexityApiKey: string, topic: string | null): Promise<string> {
-  const query = topic 
-    ? `${topic}에 대해 다음 정보를 조사해줘:
-1. 최신 트렌드와 통계 (구체적인 숫자 포함)
-2. 실제 사용 사례와 성과
-3. 놓치기 쉬운 팁이나 숨겨진 기능
-4. 비교 정보 (A vs B, 비포/애프터)
-5. 실용적인 활용 방법
-
-단순한 정의나 개념 설명은 빼고, 바로 써먹을 수 있는 구체적인 정보만 찾아줘.`
-    : `AI와 코딩, 개발 트렌드, 생산성 도구에 대한 최신 정보를 조사해줘:
-1. 최근 주목받는 AI 도구나 기술
-2. 흥미로운 사용 사례나 성과
-3. 구체적인 숫자와 통계
-
-바로 써먹을 수 있는 구체적이고 실용적인 정보 위주로 찾아줘.`
-
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${perplexityApiKey}`
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      messages: [
-        {
-          role: 'system',
-          content: '당신은 최신 정보를 조사하는 전문 리서처입니다. 구체적이고 실용적인 정보를 한국어로 제공합니다.'
-        },
-        {
-          role: 'user',
-          content: query
-        }
-      ],
-      temperature: 0.2,
       max_tokens: 2000
     })
   })
@@ -360,7 +306,6 @@ export function registerIpcHandlers(): void {
     return getPosts()
   })
 
-  // Generate handler with 2-step AI process
   ipcMain.handle(
     'generate:post',
     async (_, type: Post['type'], topic: string) => {
@@ -373,20 +318,26 @@ export function registerIpcHandlers(): void {
       if (!config.gcpServiceAccountKey) {
         throw new Error('GCP Service Account Key is not configured')
       }
-
       if (!config.perplexityApiKey) {
         throw new Error('Perplexity API key is not configured')
       }
 
       const prompt = getFullPrompt(type)
-      
-      const researchInfo = await searchAndSummarize(config.perplexityApiKey, topicToUse)
-      
+
+      const [topicItem] = await generateTopics(
+        config.gcpProjectId,
+        config.gcpServiceAccountKey,
+        1,
+        topicToUse
+      )
+
+      const researchInfo = await searchWithTopic(config.perplexityApiKey, topicItem)
+
       const { mainPost, thread } = await generatePostWithVertexAI(
         config.gcpProjectId,
         config.gcpServiceAccountKey,
         prompt,
-        topicToUse || '최신 AI 및 코딩 트렌드',
+        `${topicItem.topic} - ${topicItem.angle}`,
         researchInfo
       )
 
@@ -394,7 +345,7 @@ export function registerIpcHandlers(): void {
         id: generateId(),
         type,
         content: mainPost,
-        topic: topicToUse || '최신 AI 및 코딩 트렌드',
+        topic: topicItem.topic,
         createdAt: new Date().toISOString(),
         thread: thread.length > 0 ? thread : undefined
       }
@@ -463,7 +414,6 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // Auto generate handler with 2-step AI process
   ipcMain.handle('generate:auto', async () => {
     const config = getConfig()
 
@@ -473,7 +423,6 @@ export function registerIpcHandlers(): void {
     if (!config.gcpServiceAccountKey) {
       throw new Error('GCP Service Account Key is not configured')
     }
-
     if (!config.perplexityApiKey) {
       throw new Error('Perplexity API key is not configured')
     }
@@ -482,14 +431,15 @@ export function registerIpcHandlers(): void {
     const randomType = types[Math.floor(Math.random() * types.length)]
 
     const prompt = getFullPrompt(randomType)
-    
-    const researchInfo = await searchAndSummarize(config.perplexityApiKey, null)
-    
+
+    const [topicItem] = await generateTopics(config.gcpProjectId, config.gcpServiceAccountKey, 1, null)
+    const researchInfo = await searchWithTopic(config.perplexityApiKey, topicItem)
+
     const { mainPost, thread } = await generatePostWithVertexAI(
       config.gcpProjectId,
       config.gcpServiceAccountKey,
       prompt,
-      '최신 AI 및 코딩 트렌드',
+      `${topicItem.topic} - ${topicItem.angle}`,
       researchInfo
     )
 
@@ -497,7 +447,7 @@ export function registerIpcHandlers(): void {
       id: generateId(),
       type: randomType,
       content: mainPost,
-      topic: '최신 AI 및 코딩 트렌드',
+      topic: topicItem.topic,
       createdAt: new Date().toISOString(),
       thread: thread.length > 0 ? thread : undefined
     }
