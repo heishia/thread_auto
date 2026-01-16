@@ -169,6 +169,11 @@ JSON 형식으로만 응답해:
   }
 
   const data = await response.json()
+  
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+    throw new Error('주제 선정 실패: AI 응답 형식이 올바르지 않습니다')
+  }
+  
   const text = data.candidates[0].content.parts[0].text
 
   const jsonMatch = text.match(/\[[\s\S]*\]/)
@@ -177,7 +182,11 @@ JSON 형식으로만 응답해:
   }
 
   try {
-    return JSON.parse(jsonMatch[0])
+    const topics = JSON.parse(jsonMatch[0])
+    if (!Array.isArray(topics) || topics.length === 0) {
+      throw new Error('주제 선정 실패: 유효한 주제 배열이 아닙니다')
+    }
+    return topics
   } catch (error) {
     throw new Error(`주제 선정 실패: JSON 파싱 오류 - ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -359,6 +368,11 @@ ${researchInfo}
   }
 
   const data = await response.json()
+  
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+    throw new Error('게시물 생성 실패: AI 응답 형식이 올바르지 않습니다')
+  }
+  
   const text = data.candidates[0].content.parts[0].text
   
   try {

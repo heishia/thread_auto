@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import PostCard from './PostCard'
-import { Post, PostType, POST_TYPE_LABELS, POST_TYPE_COLORS } from '../types'
+import { Post, PostType, POST_TYPE_LABELS } from '../types'
 import { useGeneration } from '../contexts/GenerationContext'
 import { useToast } from '../contexts/ToastContext'
 
@@ -20,7 +20,7 @@ function PostList(): JSX.Element {
   const [showAutoModal, setShowAutoModal] = useState(false)
   const [autoInterval, setAutoInterval] = useState(15)
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
-  const { generatingPosts, addGeneratingPost, updateGeneratingStatus, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
+  const { generatingPosts, addGeneratingPost, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
   const { showToast } = useToast()
 
   const loadPosts = useCallback(async () => {
@@ -72,13 +72,6 @@ function PostList(): JSX.Element {
 
   const handleViewThread = (post: Post) => {
     setSelectedPost(post)
-  }
-
-  const handleCopyThread = async (post: Post) => {
-    const fullThread = [post.content, ...(post.thread || [])].join('\n\n---\n\n')
-    await navigator.clipboard.writeText(fullThread)
-    setCopiedId(post.id)
-    setTimeout(() => setCopiedId(null), 2000)
   }
 
   const filteredPosts =
@@ -210,8 +203,7 @@ function PostList(): JSX.Element {
         </button>
         <button
           onClick={() => setShowBulkModal(true)}
-          disabled={isGenerating}
-          className="w-14 h-14 bg-notion-text text-white rounded-full shadow-lg hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-2xl"
+          className="w-14 h-14 bg-notion-text text-white rounded-full shadow-lg hover:bg-opacity-90 transition-all flex items-center justify-center text-2xl"
           title="여러 게시물 생성"
         >
           +
