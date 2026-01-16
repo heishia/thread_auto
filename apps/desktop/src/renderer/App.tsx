@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import PostList from './components/PostList'
 import SettingsPage from './components/SettingsPage'
 import { GenerationProvider } from './contexts/GenerationContext'
+import { ToastProvider } from './contexts/ToastContext'
 
 type Page = 'posts' | 'settings'
 
@@ -21,14 +22,16 @@ function App(): JSX.Element {
   }
 
   return (
-    <GenerationProvider>
-      <div className="flex h-screen w-screen overflow-hidden">
-        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-        <main className="flex-1 overflow-auto bg-white">
-          {renderPage()}
-        </main>
-      </div>
-    </GenerationProvider>
+    <ToastProvider>
+      <GenerationProvider>
+        <div className="flex h-screen w-screen overflow-hidden">
+          <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+          <main className="flex-1 overflow-auto bg-white">
+            {renderPage()}
+          </main>
+        </div>
+      </GenerationProvider>
+    </ToastProvider>
   )
 }
 

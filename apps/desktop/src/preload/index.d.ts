@@ -23,6 +23,12 @@ export interface AppConfig {
   }
 }
 
+export interface AutoGenerationStatus {
+  enabled: boolean
+  interval: number
+  isGenerating: boolean
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -39,6 +45,14 @@ declare global {
         post: (type: Post['type'], topic: string) => Promise<Post>
         bulk: (type: Post['type'], count: number, topic: string) => Promise<Post[]>
         auto: () => Promise<Post>
+      }
+      autoGeneration: {
+        start: () => Promise<AutoGenerationStatus>
+        stop: () => Promise<AutoGenerationStatus>
+        status: () => Promise<AutoGenerationStatus>
+        setConfig: (enabled: boolean, interval: number) => Promise<AutoGenerationStatus>
+        onGenerating: (callback: (isGenerating: boolean) => void) => () => void
+        onGenerated: (callback: (post: Post) => void) => () => void
       }
     }
   }

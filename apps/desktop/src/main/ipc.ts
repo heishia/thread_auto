@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import {
   getConfig,
   setConfig,
@@ -13,6 +13,104 @@ import {
 interface TopicItem {
   topic: string
   angle: string
+}
+
+let autoGenerateInterval: NodeJS.Timeout | null = null
+let isAutoGenerating = false
+
+function notifyRenderer(channel: string, data?: unknown): void {
+  const windows = BrowserWindow.getAllWindows()
+  windows.forEach(win => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, data)
+    }
+  })
+}
+
+async function runAutoGenerate(): Promise<Post | null> {
+  if (isAutoGenerating) return null
+  isAutoGenerating = true
+
+  try {
+    const config = getConfig()
+
+    if (!config.gcpProjectId || !config.gcpServiceAccountKey || !config.perplexityApiKey) {
+      console.error('Auto generation failed: API keys not configured')
+      return null
+    }
+
+    notifyRenderer('auto:generating', true)
+
+    const types: Post['type'][] = ['ag', 'pro', 'br', 'in']
+    const randomType = types[Math.floor(Math.random() * types.length)]
+    const prompt = getFullPrompt(randomType)
+
+    const [topicItem] = await generateTopics(config.gcpProjectId, config.gcpServiceAccountKey, 1, null)
+    const researchInfo = await searchWithTopic(config.perplexityApiKey, topicItem)
+
+    const { mainPost, thread } = await generatePostWithVertexAI(
+      config.gcpProjectId,
+      config.gcpServiceAccountKey,
+      prompt,
+      `${topicItem.topic} - ${topicItem.angle}`,
+      researchInfo
+    )
+
+    const post: Post = {
+      id: generateId(),
+      type: randomType,
+      content: mainPost,
+      topic: topicItem.topic,
+      createdAt: new Date().toISOString(),
+      thread: thread.length > 0 ? thread : undefined
+    }
+
+    addPost(post)
+    notifyRenderer('auto:generated', post)
+    notifyRenderer('auto:generating', false)
+
+    return post
+  } catch (error) {
+    console.error('Auto generation failed:', error)
+    notifyRenderer('auto:generating', false)
+    return null
+  } finally {
+    isAutoGenerating = false
+  }
+}
+
+export function startAutoGeneration(): void {
+  const config = getConfig()
+  
+  if (autoGenerateInterval) {
+    clearInterval(autoGenerateInterval)
+    autoGenerateInterval = null
+  }
+
+  if (config.autoGenerateEnabled && config.autoGenerateInterval > 0) {
+    const intervalMs = config.autoGenerateInterval * 60 * 1000
+    autoGenerateInterval = setInterval(() => {
+      runAutoGenerate()
+    }, intervalMs)
+    console.log(`Auto generation started: every ${config.autoGenerateInterval} minutes`)
+  }
+}
+
+export function stopAutoGeneration(): void {
+  if (autoGenerateInterval) {
+    clearInterval(autoGenerateInterval)
+    autoGenerateInterval = null
+    console.log('Auto generation stopped')
+  }
+}
+
+export function getAutoGenerationStatus(): { enabled: boolean; interval: number; isGenerating: boolean } {
+  const config = getConfig()
+  return {
+    enabled: config.autoGenerateEnabled,
+    interval: config.autoGenerateInterval,
+    isGenerating: isAutoGenerating
+  }
 }
 
 function getCurrentDateString(): string {
@@ -453,5 +551,29 @@ export function registerIpcHandlers(): void {
 
     addPost(post)
     return post
+  })
+
+  ipcMain.handle('auto:start', () => {
+    startAutoGeneration()
+    return getAutoGenerationStatus()
+  })
+
+  ipcMain.handle('auto:stop', () => {
+    stopAutoGeneration()
+    return getAutoGenerationStatus()
+  })
+
+  ipcMain.handle('auto:status', () => {
+    return getAutoGenerationStatus()
+  })
+
+  ipcMain.handle('auto:setConfig', async (_, enabled: boolean, interval: number) => {
+    setConfig({ autoGenerateEnabled: enabled, autoGenerateInterval: interval })
+    if (enabled) {
+      startAutoGeneration()
+    } else {
+      stopAutoGeneration()
+    }
+    return getAutoGenerationStatus()
   })
 }

@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AppConfig, PostType, POST_TYPE_LABELS } from '../types'
+import { useToast } from '../contexts/ToastContext'
 
 function SettingsPage(): JSX.Element {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [gcpProjectId, setGcpProjectId] = useState('')
   const [gcpServiceAccountKey, setGcpServiceAccountKey] = useState('')
-  const [autoEnabled, setAutoEnabled] = useState(false)
-  const [autoInterval, setAutoInterval] = useState(15)
   const [prompts, setPrompts] = useState<AppConfig['prompts'] | null>(null)
   const [activePromptTab, setActivePromptTab] = useState<PostType>('ag')
   const [saved, setSaved] = useState(false)
+  const { showToast } = useToast()
 
   const loadConfig = useCallback(async () => {
     const cfg = await window.api.config.get()
@@ -18,8 +18,6 @@ function SettingsPage(): JSX.Element {
     setPerplexityApiKey(cfg.perplexityApiKey || '')
     setGcpProjectId(cfg.gcpProjectId || '')
     setGcpServiceAccountKey(cfg.gcpServiceAccountKey || '')
-    setAutoEnabled(cfg.autoGenerateEnabled)
-    setAutoInterval(cfg.autoGenerateInterval)
     setPrompts(cfg.prompts)
   }, [])
 
@@ -31,20 +29,17 @@ function SettingsPage(): JSX.Element {
     console.log('[Settings] Saving config:', {
       hasPerplexityApiKey: !!perplexityApiKey,
       hasGcpProjectId: !!gcpProjectId,
-      hasGcpServiceAccountKey: !!gcpServiceAccountKey,
-      autoEnabled,
-      autoInterval
+      hasGcpServiceAccountKey: !!gcpServiceAccountKey
     })
     const result = await window.api.config.set({
       perplexityApiKey: perplexityApiKey,
       gcpProjectId: gcpProjectId,
       gcpServiceAccountKey: gcpServiceAccountKey,
-      autoGenerateEnabled: autoEnabled,
-      autoGenerateInterval: autoInterval,
       prompts: prompts || config?.prompts
     })
     console.log('[Settings] Config saved, result:', result)
     setSaved(true)
+    showToast('설정이 저장되었습니다', 'success')
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -146,43 +141,6 @@ function SettingsPage(): JSX.Element {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Auto Generate Section */}
-        <section>
-          <h3 className="text-lg font-medium text-notion-text mb-3">자동 생성</h3>
-          <div className="space-y-4">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoEnabled}
-                onChange={(e) => setAutoEnabled(e.target.checked)}
-                className="w-4 h-4 rounded border-notion-border text-notion-text focus:ring-notion-text"
-              />
-              <span className="text-sm text-notion-text">
-                자동 게시물 생성 활성화
-              </span>
-            </label>
-
-            {autoEnabled && (
-              <div>
-                <label className="block text-sm text-notion-muted mb-2">
-                  생성 주기 (분)
-                </label>
-                <input
-                  type="number"
-                  value={autoInterval}
-                  onChange={(e) => setAutoInterval(Number(e.target.value))}
-                  min={1}
-                  max={120}
-                  className="w-32 px-3 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
-                />
-                <p className="mt-1 text-xs text-notion-muted">
-                  권장: 15분 (시간당 4개 게시물)
-                </p>
-              </div>
-            )}
           </div>
         </section>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import PostCard from './PostCard'
 import { Post, PostType, POST_TYPE_LABELS, POST_TYPE_COLORS } from '../types'
 import { useGeneration } from '../contexts/GenerationContext'
+import { useToast } from '../contexts/ToastContext'
 
 function PostList(): JSX.Element {
   const [posts, setPosts] = useState<Post[]>([])
@@ -15,16 +16,45 @@ function PostList(): JSX.Element {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingProgress, setGeneratingProgress] = useState({ current: 0, total: 0 })
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [autoEnabled, setAutoEnabled] = useState(false)
+  const [showAutoModal, setShowAutoModal] = useState(false)
+  const [autoInterval, setAutoInterval] = useState(15)
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
   const { generatingPosts, addGeneratingPost, updateGeneratingStatus, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
+  const { showToast } = useToast()
 
   const loadPosts = useCallback(async () => {
     const data = await window.api.posts.get()
     setPosts(data)
   }, [])
 
+  const loadAutoStatus = useCallback(async () => {
+    const status = await window.api.autoGeneration.status()
+    setAutoEnabled(status.enabled)
+    setAutoInterval(status.interval)
+    setIsAutoGenerating(status.isGenerating)
+  }, [])
+
   useEffect(() => {
     loadPosts()
-  }, [loadPosts, refreshTrigger])
+    loadAutoStatus()
+  }, [loadPosts, loadAutoStatus, refreshTrigger])
+
+  useEffect(() => {
+    const unsubGenerating = window.api.autoGeneration.onGenerating((generating) => {
+      setIsAutoGenerating(generating)
+    })
+
+    const unsubGenerated = window.api.autoGeneration.onGenerated(() => {
+      loadPosts()
+      showToast('게시물이 자동 생성되었습니다', 'success')
+    })
+
+    return () => {
+      unsubGenerating()
+      unsubGenerated()
+    }
+  }, [loadPosts, showToast])
 
   const handleDelete = async (id: string) => {
     await window.api.posts.delete(id)
@@ -166,14 +196,27 @@ function PostList(): JSX.Element {
       )}
 
       {/* 플로팅 버튼 */}
-      <button
-        onClick={() => setShowBulkModal(true)}
-        disabled={isGenerating}
-        className="fixed right-8 bottom-8 w-14 h-14 bg-notion-text text-white rounded-full shadow-lg hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-2xl z-50"
-        title="여러 게시물 생성"
-      >
-        +
-      </button>
+      <div className="fixed right-8 bottom-8 flex items-center gap-3 z-50">
+        <button
+          onClick={() => setShowAutoModal(true)}
+          className={`w-14 h-14 rounded-full shadow-lg transition-all flex items-center justify-center text-sm font-bold ${
+            autoEnabled
+              ? 'bg-blue-500 text-white hover:bg-blue-600'
+              : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+          }`}
+          title="자동 생성 설정"
+        >
+          auto
+        </button>
+        <button
+          onClick={() => setShowBulkModal(true)}
+          disabled={isGenerating}
+          className="w-14 h-14 bg-notion-text text-white rounded-full shadow-lg hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-2xl"
+          title="여러 게시물 생성"
+        >
+          +
+        </button>
+      </div>
 
       {/* 스레드 보기 모달 */}
       {selectedPost && (
@@ -349,6 +392,101 @@ function PostList(): JSX.Element {
                     setBulkTopic('')
                     setUseTopicSetting(false)
                   }}
+                  className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 자동 생성 설정 모달 */}
+      {showAutoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAutoModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-semibold text-notion-text mb-4">자동 생성 설정</h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-notion-text">자동 생성</p>
+                  <p className="text-xs text-notion-muted">설정된 간격으로 자동으로 게시물을 생성합니다</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const newEnabled = !autoEnabled
+                    setAutoEnabled(newEnabled)
+                    await window.api.autoGeneration.setConfig(newEnabled, autoInterval)
+                    if (newEnabled) {
+                      showToast('자동 생성이 활성화되었습니다 (백그라운드에서 실행)', 'success')
+                    } else {
+                      showToast('자동 생성이 비활성화되었습니다', 'info')
+                    }
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    autoEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-0 w-4 h-4 bg-white rounded-full transition-transform ${
+                      autoEnabled ? 'translate-x-7' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className={autoEnabled ? '' : 'opacity-50 pointer-events-none'}>
+                <label className="block text-sm font-medium text-notion-text mb-2">
+                  생성 주기 (분)
+                </label>
+                <input
+                  type="number"
+                  value={autoInterval}
+                  onChange={(e) => setAutoInterval(Number(e.target.value))}
+                  min={1}
+                  max={120}
+                  className="w-full px-4 py-2 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+                />
+                <p className="mt-1 text-xs text-notion-muted">
+                  권장: 15분 (시간당 4개 게시물)
+                </p>
+              </div>
+
+              {autoEnabled && (
+                <div className="px-3 py-2 bg-blue-50 text-blue-700 text-xs rounded-lg">
+                  {isAutoGenerating ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      게시물 생성 중...
+                    </span>
+                  ) : (
+                    `다음 생성까지 ${autoInterval}분 간격으로 자동 생성됩니다`
+                  )}
+                </div>
+              )}
+
+              <div className="px-3 py-2 bg-green-50 text-green-700 text-xs rounded-lg">
+                창을 닫아도 시스템 트레이에서 백그라운드로 계속 실행됩니다
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={async () => {
+                    await window.api.autoGeneration.setConfig(autoEnabled, autoInterval)
+                    setShowAutoModal(false)
+                    showToast('자동 생성 설정이 저장되었습니다', 'success')
+                  }}
+                  className="flex-1 px-4 py-2 bg-notion-text text-white font-medium rounded-lg hover:bg-opacity-90 transition-colors"
+                >
+                  저장
+                </button>
+                <button
+                  onClick={() => setShowAutoModal(false)}
                   className="px-4 py-2 bg-notion-sidebar text-notion-text font-medium rounded-lg hover:bg-notion-hover transition-colors"
                 >
                   취소
