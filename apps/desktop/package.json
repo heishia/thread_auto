@@ -4,6 +4,11 @@
   "description": "Thread post auto generator desktop app",
   "type": "module",
   "main": "dist/main/index.js",
+  "author": "heishia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heishia/thread_auto.git"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder",
