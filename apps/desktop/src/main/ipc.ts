@@ -28,22 +28,57 @@ let nextReminderTime: Date | null = null
 // Comet 쇼트컷 자동 트리거 (PowerShell 기반)
 // ============================================
 
+// #region agent log - call counter
+let triggerCallCount = 0
+// #endregion
+
 function triggerCometShortcut(): void {
-  // PowerShell 스크립트: Alt+A → /threads-post 입력 → Enter
-  const psScript = `
-    Add-Type -AssemblyName System.Windows.Forms
-    Start-Sleep -Seconds 4
-    [System.Windows.Forms.SendKeys]::SendWait('%a')
-    Start-Sleep -Milliseconds 500
-    [System.Windows.Forms.SendKeys]::SendWait('/threads-post')
-    Start-Sleep -Milliseconds 300
-    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
-  `
+  // #region agent log - H2
+  triggerCallCount++
+  fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:triggerCometShortcut',message:'triggerCometShortcut called',data:{callCount:triggerCallCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+
+  // PowerShell 스크립트:
+  // 1. 클립보드에 /threads-post 복사
+  // 2. Comet 창 활성화
+  // 3. Alt+A → Ctrl+V (붙여넣기) → Enter
+  const psScript = [
+    // Windows Forms 로드
+    'Add-Type -AssemblyName System.Windows.Forms',
+    'Add-Type -AssemblyName Microsoft.VisualBasic',
+    // 클립보드에 /threads-post 복사
+    "Set-Clipboard -Value '/threads-post'",
+    // 4초 대기 (페이지 로딩)
+    'Start-Sleep -Seconds 4',
+    // Comet 프로세스 찾아서 활성화
+    '$comet = Get-Process -Name Comet -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1',
+    'if ($comet) { [Microsoft.VisualBasic.Interaction]::AppActivate($comet.Id) }',
+    // 0.5초 대기 (창 활성화)
+    'Start-Sleep -Milliseconds 500',
+    // Alt+A (Comet Assistant 활성화)
+    "[System.Windows.Forms.SendKeys]::SendWait('%a')",
+    'Start-Sleep -Milliseconds 800',
+    // Ctrl+V (붙여넣기)
+    "[System.Windows.Forms.SendKeys]::SendWait('^v')",
+    'Start-Sleep -Milliseconds 300',
+    // Enter 키
+    "[System.Windows.Forms.SendKeys]::SendWait('{ENTER}')"
+  ].join('; ')
   
-  // PowerShell 실행 (UTF-8 인코딩)
-  const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`
+  // PowerShell 실행
+  const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript}"`
   
-  exec(command, (error, stdout, stderr) => {
+  console.log('Comet 쇼트컷 트리거 시작 (4초 후 Comet 활성화 및 실행)...')
+  
+  // #region agent log - H3
+  fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:exec-before',message:'PowerShell exec starting',data:{callCount:triggerCallCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
+
+  exec(command, (error, _stdout, stderr) => {
+    // #region agent log - H3 callback
+    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:exec-callback',message:'PowerShell exec completed',data:{callCount:triggerCallCount,hasError:!!error,stderr:stderr||''},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+
     if (error) {
       console.error('Comet 쇼트컷 트리거 실패:', error.message)
       return
@@ -173,13 +208,13 @@ function showReminderAndOpenThreads(): void {
   
   notification.show()
   
-  // 2초 후 브라우저에서 스레드 페이지 열기
+  // 2초 후 브라우저에서 스레드 페이지 열기 + Comet 쇼트컷 트리거
   setTimeout(() => {
-    const url = config.threadProfileUrl + '?trigger=auto'
+    const url = config.threadProfileUrl
     shell.openExternal(url)
     console.log(`[${new Date().toLocaleTimeString()}] 스레드 페이지 열림: ${url}`)
     
-    // Comet 쇼트컷 자동 트리거 (Alt+A → /threads-post → Enter)
+    // Comet 쇼트컷 자동 트리거
     triggerCometShortcut()
   }, 2000)
 }
@@ -760,13 +795,26 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('publish:openThreads', () => {
+    // #region agent log - H1
+    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'Handler called - before openExternal',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     const config = getConfig()
-    const url = config.threadProfileUrl + '?trigger=manual'
+    const url = config.threadProfileUrl
     shell.openExternal(url)
+    
+    // #region agent log - H1
+    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'After openExternal - before triggerCometShortcut',data:{url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     console.log(`[${new Date().toLocaleTimeString()}] 수동 실행 - 스레드 페이지 열림: ${url}`)
     
-    // Comet 쇼트컷 자동 트리거 (Alt+A → /threads-post → Enter)
+    // Comet 쇼트컷 자동 트리거
     triggerCometShortcut()
+
+    // #region agent log - H1
+    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'Handler completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
   })
 
   ipcMain.handle('publish:getStatus', () => {
