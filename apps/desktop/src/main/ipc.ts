@@ -1,4 +1,5 @@
 import { ipcMain, BrowserWindow, shell, Notification } from 'electron'
+import { exec } from 'child_process'
 import {
   getConfig,
   setConfig,
@@ -22,6 +23,37 @@ let isAutoGenerating = false
 let hourlyReminderTimeout: NodeJS.Timeout | null = null
 let hourlyReminderInterval: NodeJS.Timeout | null = null
 let nextReminderTime: Date | null = null
+
+// ============================================
+// Comet 쇼트컷 자동 트리거 (PowerShell 기반)
+// ============================================
+
+function triggerCometShortcut(): void {
+  // PowerShell 스크립트: Alt+A → /threads-post 입력 → Enter
+  const psScript = `
+    Add-Type -AssemblyName System.Windows.Forms
+    Start-Sleep -Seconds 4
+    [System.Windows.Forms.SendKeys]::SendWait('%a')
+    Start-Sleep -Milliseconds 500
+    [System.Windows.Forms.SendKeys]::SendWait('/threads-post')
+    Start-Sleep -Milliseconds 300
+    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+  `
+  
+  // PowerShell 실행 (UTF-8 인코딩)
+  const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`
+  
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Comet 쇼트컷 트리거 실패:', error.message)
+      return
+    }
+    if (stderr) {
+      console.error('PowerShell stderr:', stderr)
+    }
+    console.log('Comet /threads-post 쇼트컷 트리거 완료')
+  })
+}
 
 function notifyRenderer(channel: string, data?: unknown): void {
   const windows = BrowserWindow.getAllWindows()
@@ -135,7 +167,7 @@ function showReminderAndOpenThreads(): void {
   // Windows 알림 표시
   const notification = new Notification({
     title: '스레드 글 작성 시간',
-    body: '게시 버튼을 누르세요',
+    body: 'Comet이 자동으로 게시 준비를 시작합니다',
     icon: undefined // 기본 아이콘 사용
   })
   
@@ -146,6 +178,9 @@ function showReminderAndOpenThreads(): void {
     const url = config.threadProfileUrl + '?trigger=auto'
     shell.openExternal(url)
     console.log(`[${new Date().toLocaleTimeString()}] 스레드 페이지 열림: ${url}`)
+    
+    // Comet 쇼트컷 자동 트리거 (Alt+A → /threads-post → Enter)
+    triggerCometShortcut()
   }, 2000)
 }
 
@@ -728,6 +763,10 @@ export function registerIpcHandlers(): void {
     const config = getConfig()
     const url = config.threadProfileUrl + '?trigger=manual'
     shell.openExternal(url)
+    console.log(`[${new Date().toLocaleTimeString()}] 수동 실행 - 스레드 페이지 열림: ${url}`)
+    
+    // Comet 쇼트컷 자동 트리거 (Alt+A → /threads-post → Enter)
+    triggerCometShortcut()
   })
 
   ipcMain.handle('publish:getStatus', () => {

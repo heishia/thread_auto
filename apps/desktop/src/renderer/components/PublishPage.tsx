@@ -196,7 +196,7 @@ function PublishPage(): JSX.Element {
                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  className={`absolute top-1 left-0 w-4 h-4 bg-white rounded-full transition-transform ${
                     status.enabled ? 'translate-x-7' : 'translate-x-1'
                   }`}
                 />
