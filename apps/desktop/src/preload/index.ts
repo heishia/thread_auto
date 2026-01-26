@@ -22,12 +22,21 @@ export interface AppConfig {
     br: string
     in: string
   }
+  // 게시하기 설정
+  threadProfileUrl: string
+  hourlyReminderEnabled: boolean
 }
 
 export interface AutoGenerationStatus {
   enabled: boolean
   interval: number
   isGenerating: boolean
+}
+
+export interface PublishStatus {
+  enabled: boolean
+  threadProfileUrl: string
+  nextReminderTime: string | null
 }
 
 const api = {
@@ -63,6 +72,15 @@ const api = {
       ipcRenderer.on('auto:generated', handler)
       return () => ipcRenderer.removeListener('auto:generated', handler)
     }
+  },
+  // 게시하기 (정각 알림)
+  publish: {
+    startReminder: (): Promise<PublishStatus> => ipcRenderer.invoke('publish:startReminder'),
+    stopReminder: (): Promise<PublishStatus> => ipcRenderer.invoke('publish:stopReminder'),
+    openThreads: (): Promise<void> => ipcRenderer.invoke('publish:openThreads'),
+    getStatus: (): Promise<PublishStatus> => ipcRenderer.invoke('publish:getStatus'),
+    setConfig: (url: string, enabled: boolean): Promise<PublishStatus> =>
+      ipcRenderer.invoke('publish:setConfig', url, enabled)
   }
 }
 

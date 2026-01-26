@@ -21,12 +21,21 @@ export interface AppConfig {
     br: string
     in: string
   }
+  // 게시하기 설정
+  threadProfileUrl: string
+  hourlyReminderEnabled: boolean
 }
 
 export interface AutoGenerationStatus {
   enabled: boolean
   interval: number
   isGenerating: boolean
+}
+
+export interface PublishStatus {
+  enabled: boolean
+  threadProfileUrl: string
+  nextReminderTime: string | null
 }
 
 declare global {
@@ -53,6 +62,13 @@ declare global {
         setConfig: (enabled: boolean, interval: number) => Promise<AutoGenerationStatus>
         onGenerating: (callback: (isGenerating: boolean) => void) => () => void
         onGenerated: (callback: (post: Post) => void) => () => void
+      }
+      publish: {
+        startReminder: () => Promise<PublishStatus>
+        stopReminder: () => Promise<PublishStatus>
+        openThreads: () => Promise<void>
+        getStatus: () => Promise<PublishStatus>
+        setConfig: (url: string, enabled: boolean) => Promise<PublishStatus>
       }
     }
   }

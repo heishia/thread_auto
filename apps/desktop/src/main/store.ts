@@ -21,6 +21,9 @@ export interface AppConfig {
     br: string
     in: string
   }
+  // 게시하기 설정
+  threadProfileUrl: string
+  hourlyReminderEnabled: boolean
 }
 
 interface StoreSchema {
@@ -88,7 +91,10 @@ const store = new Store<StoreSchema>({
       gcpServiceAccountKey: '',
       autoGenerateEnabled: false,
       autoGenerateInterval: 15,
-      prompts: defaultPrompts
+      prompts: defaultPrompts,
+      // 게시하기 기본값
+      threadProfileUrl: 'https://www.threads.com/@kimppopp_',
+      hourlyReminderEnabled: false
     },
     posts: []
   }

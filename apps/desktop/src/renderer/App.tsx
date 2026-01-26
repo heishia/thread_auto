@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import PostList from './components/PostList'
+import PublishPage from './components/PublishPage'
 import SettingsPage from './components/SettingsPage'
 import { GenerationProvider } from './contexts/GenerationContext'
 import { ToastProvider } from './contexts/ToastContext'
 
-type Page = 'posts' | 'settings'
+type Page = 'posts' | 'publish' | 'settings'
 
 function App(): JSX.Element {
   const [currentPage, setCurrentPage] = useState<Page>('posts')
@@ -14,6 +15,8 @@ function App(): JSX.Element {
     switch (currentPage) {
       case 'posts':
         return <PostList />
+      case 'publish':
+        return <PublishPage />
       case 'settings':
         return <SettingsPage />
       default:

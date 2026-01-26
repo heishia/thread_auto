@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, shell, Notification } from 'electron'
 import {
   getConfig,
   setConfig,
@@ -17,6 +17,11 @@ interface TopicItem {
 
 let autoGenerateInterval: NodeJS.Timeout | null = null
 let isAutoGenerating = false
+
+// 정각 알림 스케줄링 변수
+let hourlyReminderTimeout: NodeJS.Timeout | null = null
+let hourlyReminderInterval: NodeJS.Timeout | null = null
+let nextReminderTime: Date | null = null
 
 function notifyRenderer(channel: string, data?: unknown): void {
   const windows = BrowserWindow.getAllWindows()
@@ -110,6 +115,97 @@ export function getAutoGenerationStatus(): { enabled: boolean; interval: number;
     enabled: config.autoGenerateEnabled,
     interval: config.autoGenerateInterval,
     isGenerating: isAutoGenerating
+  }
+}
+
+// ============================================
+// 정각 알림 스케줄링 (게시하기 기능)
+// ============================================
+
+function getNextHourTimestamp(): number {
+  const now = new Date()
+  const next = new Date(now)
+  next.setHours(now.getHours() + 1, 0, 0, 0)
+  return next.getTime() - now.getTime()
+}
+
+function showReminderAndOpenThreads(): void {
+  const config = getConfig()
+  
+  // Windows 알림 표시
+  const notification = new Notification({
+    title: '스레드 글 작성 시간',
+    body: '게시 버튼을 누르세요',
+    icon: undefined // 기본 아이콘 사용
+  })
+  
+  notification.show()
+  
+  // 2초 후 브라우저에서 스레드 페이지 열기
+  setTimeout(() => {
+    const url = config.threadProfileUrl + '?trigger=auto'
+    shell.openExternal(url)
+    console.log(`[${new Date().toLocaleTimeString()}] 스레드 페이지 열림: ${url}`)
+  }, 2000)
+}
+
+export function startHourlyReminder(): void {
+  // 기존 타이머 정리
+  stopHourlyReminder()
+  
+  const config = getConfig()
+  if (!config.hourlyReminderEnabled) {
+    return
+  }
+  
+  // 다음 정각까지 대기 시간 계산
+  const msUntilNextHour = getNextHourTimestamp()
+  
+  // 다음 알림 시간 저장
+  nextReminderTime = new Date(Date.now() + msUntilNextHour)
+  
+  console.log(`정각 알림 시작: 다음 알림 ${nextReminderTime.toLocaleTimeString()}`)
+  
+  // 첫 정각에 실행
+  hourlyReminderTimeout = setTimeout(() => {
+    showReminderAndOpenThreads()
+    
+    // 다음 알림 시간 업데이트
+    nextReminderTime = new Date(Date.now() + 60 * 60 * 1000)
+    
+    // 이후 매시간 정각에 실행 (1시간 = 60 * 60 * 1000 ms)
+    hourlyReminderInterval = setInterval(() => {
+      showReminderAndOpenThreads()
+      nextReminderTime = new Date(Date.now() + 60 * 60 * 1000)
+    }, 60 * 60 * 1000)
+  }, msUntilNextHour)
+}
+
+export function stopHourlyReminder(): void {
+  if (hourlyReminderTimeout) {
+    clearTimeout(hourlyReminderTimeout)
+    hourlyReminderTimeout = null
+  }
+  if (hourlyReminderInterval) {
+    clearInterval(hourlyReminderInterval)
+    hourlyReminderInterval = null
+  }
+  nextReminderTime = null
+  console.log('정각 알림 중지됨')
+}
+
+export interface PublishStatus {
+  enabled: boolean
+  threadProfileUrl: string
+  nextReminderTime: string | null
+}
+
+export function getHourlyReminderStatus(): PublishStatus {
+  const config = getConfig()
+  return {
+    enabled: config.hourlyReminderEnabled,
+    threadProfileUrl: config.threadProfileUrl,
+    nextReminderTime: nextReminderTime ? nextReminderTime.toISOString() : null
   }
 }
 
@@ -610,5 +706,41 @@ export function registerIpcHandlers(): void {
       stopAutoGeneration()
     }
     return getAutoGenerationStatus()
+  })
+
+  // ============================================
+  // 게시하기 (정각 알림) 핸들러
+  // ============================================
+
+  ipcMain.handle('publish:startReminder', () => {
+    setConfig({ hourlyReminderEnabled: true })
+    startHourlyReminder()
+    return getHourlyReminderStatus()
+  })
+
+  ipcMain.handle('publish:stopReminder', () => {
+    setConfig({ hourlyReminderEnabled: false })
+    stopHourlyReminder()
+    return getHourlyReminderStatus()
+  })
+
+  ipcMain.handle('publish:openThreads', () => {
+    const config = getConfig()
+    const url = config.threadProfileUrl + '?trigger=manual'
+    shell.openExternal(url)
+  })
+
+  ipcMain.handle('publish:getStatus', () => {
+    return getHourlyReminderStatus()
+  })
+
+  ipcMain.handle('publish:setConfig', (_, url: string, enabled: boolean) => {
+    setConfig({ threadProfileUrl: url, hourlyReminderEnabled: enabled })
+    if (enabled) {
+      startHourlyReminder()
+    } else {
+      stopHourlyReminder()
+    }
+    return getHourlyReminderStatus()
   })
 }

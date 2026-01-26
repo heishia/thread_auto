@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { registerIpcHandlers, startAutoGeneration, stopAutoGeneration, getAutoGenerationStatus } from './ipc'
+import { registerIpcHandlers, startAutoGeneration, stopAutoGeneration, getAutoGenerationStatus, startHourlyReminder, stopHourlyReminder, getHourlyReminderStatus } from './ipc'
 import { getConfig, setConfig } from './store'
 
 let mainWindow: BrowserWindow | null = null
@@ -40,7 +40,8 @@ function createTray(): void {
 function updateTrayMenu(): void {
   if (!tray) return
   
-  const status = getAutoGenerationStatus()
+  const autoStatus = getAutoGenerationStatus()
+  const publishStatus = getHourlyReminderStatus()
   
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -56,9 +57,9 @@ function updateTrayMenu(): void {
     },
     { type: 'separator' },
     {
-      label: status.enabled ? '자동 생성 중지' : '자동 생성 시작',
+      label: autoStatus.enabled ? '자동 생성 중지' : '자동 생성 시작',
       click: () => {
-        if (status.enabled) {
+        if (autoStatus.enabled) {
           stopAutoGeneration()
           setConfig({ autoGenerateEnabled: false })
         } else {
@@ -69,7 +70,25 @@ function updateTrayMenu(): void {
       }
     },
     {
-      label: `상태: ${status.enabled ? `${status.interval}분 간격으로 자동 생성` : '비활성화'}`,
+      label: `자동 생성: ${autoStatus.enabled ? `${autoStatus.interval}분 간격` : '비활성화'}`,
+      enabled: false
+    },
+    { type: 'separator' },
+    {
+      label: publishStatus.enabled ? '정각 알림 중지' : '정각 알림 시작',
+      click: () => {
+        if (publishStatus.enabled) {
+          stopHourlyReminder()
+          setConfig({ hourlyReminderEnabled: false })
+        } else {
+          setConfig({ hourlyReminderEnabled: true })
+          startHourlyReminder()
+        }
+        updateTrayMenu()
+      }
+    },
+    {
+      label: `정각 알림: ${publishStatus.enabled ? '활성화' : '비활성화'}`,
       enabled: false
     },
     { type: 'separator' },
@@ -78,6 +97,7 @@ function updateTrayMenu(): void {
       click: () => {
         isQuitting = true
         stopAutoGeneration()
+        stopHourlyReminder()
         app.quit()
       }
     }
@@ -148,6 +168,11 @@ app.whenReady().then(() => {
   const config = getConfig()
   if (config.autoGenerateEnabled) {
     startAutoGeneration()
+  }
+  
+  // 정각 알림 자동 시작
+  if (config.hourlyReminderEnabled) {
+    startHourlyReminder()
   }
 
   setInterval(() => {
