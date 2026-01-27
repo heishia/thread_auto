@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+export type PostStatus = 'draft' | 'pending' | 'published' | 'failed'
+
 export interface Post {
   id: string
   type: 'ag' | 'pro' | 'br' | 'in'
@@ -8,6 +10,12 @@ export interface Post {
   topic: string
   createdAt: string
   thread?: string[]
+  // 예약 발행 관련 필드
+  status: PostStatus
+  scheduledAt?: string
+  publishedAt?: string
+  threadsPostId?: string
+  errorMessage?: string
 }
 
 export interface AppConfig {
@@ -25,6 +33,9 @@ export interface AppConfig {
   // 게시하기 설정
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
+  // Threads API 설정
+  threadsAccessToken: string
+  threadsUserId: string
 }
 
 export interface AutoGenerationStatus {
@@ -81,6 +92,34 @@ const api = {
     getStatus: (): Promise<PublishStatus> => ipcRenderer.invoke('publish:getStatus'),
     setConfig: (url: string, enabled: boolean): Promise<PublishStatus> =>
       ipcRenderer.invoke('publish:setConfig', url, enabled)
+  },
+  // Threads API
+  threads: {
+    test: (): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('threads:test'),
+    publish: (postId: string): Promise<{ success: boolean; threadsPostId?: string; error?: string }> =>
+      ipcRenderer.invoke('threads:publish', postId),
+    checkLimit: (): Promise<{ used: number; limit: number }> =>
+      ipcRenderer.invoke('threads:checkLimit')
+  },
+  // 예약 발행
+  schedule: {
+    set: (postId: string, scheduledAt: string): Promise<Post> =>
+      ipcRenderer.invoke('schedule:set', postId, scheduledAt),
+    cancel: (postId: string): Promise<Post> =>
+      ipcRenderer.invoke('schedule:cancel', postId),
+    update: (postId: string, scheduledAt: string): Promise<Post> =>
+      ipcRenderer.invoke('schedule:update', postId, scheduledAt),
+    onPublished: (callback: (post: Post) => void) => {
+      const handler = (_: unknown, post: Post) => callback(post)
+      ipcRenderer.on('schedule:published', handler)
+      return () => ipcRenderer.removeListener('schedule:published', handler)
+    },
+    onFailed: (callback: (post: Post) => void) => {
+      const handler = (_: unknown, post: Post) => callback(post)
+      ipcRenderer.on('schedule:failed', handler)
+      return () => ipcRenderer.removeListener('schedule:failed', handler)
+    }
   }
 }
 

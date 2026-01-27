@@ -5,9 +5,11 @@ interface PostCardProps {
   onDelete: (id: string) => void
   onCopy: (content: string) => void
   onViewThread?: (post: Post) => void
+  onApprove?: (post: Post) => void
+  showApproveButton?: boolean
 }
 
-function PostCard({ post, onDelete, onCopy, onViewThread }: PostCardProps): JSX.Element {
+function PostCard({ post, onDelete, onCopy, onViewThread, onApprove, showApproveButton = true }: PostCardProps): JSX.Element {
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleString('ko-KR', {
@@ -68,6 +70,14 @@ function PostCard({ post, onDelete, onCopy, onViewThread }: PostCardProps): JSX.
         >
           복사
         </button>
+        {showApproveButton && post.status === 'draft' && onApprove && (
+          <button
+            onClick={() => onApprove(post)}
+            className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+          >
+            승인
+          </button>
+        )}
         <button
           onClick={() => onDelete(post.id)}
           className="px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded transition-colors"

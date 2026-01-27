@@ -7,9 +7,12 @@ function SettingsPage(): JSX.Element {
   const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [gcpProjectId, setGcpProjectId] = useState('')
   const [gcpServiceAccountKey, setGcpServiceAccountKey] = useState('')
+  const [threadsAccessToken, setThreadsAccessToken] = useState('')
+  const [threadsUserId, setThreadsUserId] = useState('')
   const [prompts, setPrompts] = useState<AppConfig['prompts'] | null>(null)
   const [activePromptTab, setActivePromptTab] = useState<PostType>('ag')
   const [saved, setSaved] = useState(false)
+  const [testingThreads, setTestingThreads] = useState(false)
   const { showToast } = useToast()
 
   const loadConfig = useCallback(async () => {
@@ -18,6 +21,8 @@ function SettingsPage(): JSX.Element {
     setPerplexityApiKey(cfg.perplexityApiKey || '')
     setGcpProjectId(cfg.gcpProjectId || '')
     setGcpServiceAccountKey(cfg.gcpServiceAccountKey || '')
+    setThreadsAccessToken(cfg.threadsAccessToken || '')
+    setThreadsUserId(cfg.threadsUserId || '')
     setPrompts(cfg.prompts)
   }, [])
 
@@ -29,18 +34,43 @@ function SettingsPage(): JSX.Element {
     console.log('[Settings] Saving config:', {
       hasPerplexityApiKey: !!perplexityApiKey,
       hasGcpProjectId: !!gcpProjectId,
-      hasGcpServiceAccountKey: !!gcpServiceAccountKey
+      hasGcpServiceAccountKey: !!gcpServiceAccountKey,
+      hasThreadsAccessToken: !!threadsAccessToken,
+      hasThreadsUserId: !!threadsUserId
     })
     const result = await window.api.config.set({
       perplexityApiKey: perplexityApiKey,
       gcpProjectId: gcpProjectId,
       gcpServiceAccountKey: gcpServiceAccountKey,
+      threadsAccessToken: threadsAccessToken,
+      threadsUserId: threadsUserId,
       prompts: prompts || config?.prompts
     })
     console.log('[Settings] Config saved, result:', result)
     setSaved(true)
     showToast('설정이 저장되었습니다', 'success')
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleTestThreads = async () => {
+    if (!threadsAccessToken || !threadsUserId) {
+      showToast('Access Token과 User ID를 먼저 입력하세요', 'error')
+      return
+    }
+    
+    setTestingThreads(true)
+    try {
+      const result = await window.api.threads.test()
+      if (result.success) {
+        showToast('Threads API 연결 성공!', 'success')
+      } else {
+        showToast(`연결 실패: ${result.error}`, 'error')
+      }
+    } catch (error) {
+      showToast('연결 테스트 중 오류가 발생했습니다', 'error')
+    } finally {
+      setTestingThreads(false)
+    }
   }
 
   const handlePromptChange = (type: PostType, value: string) => {
@@ -141,6 +171,70 @@ function SettingsPage(): JSX.Element {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Threads API Section */}
+        <section>
+          <h3 className="text-lg font-medium text-notion-text mb-4">Threads API 설정</h3>
+          <p className="text-sm text-notion-muted mb-4">
+            예약 발행 기능을 사용하려면 Threads API 인증 정보가 필요합니다
+          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-notion-text mb-2">
+                Access Token
+              </label>
+              <input
+                type="password"
+                value={threadsAccessToken}
+                onChange={(e) => setThreadsAccessToken(e.target.value)}
+                placeholder="Threads API Access Token을 입력하세요..."
+                className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+              />
+              <p className="mt-2 text-xs text-notion-muted">
+                <a
+                  href="https://developers.facebook.com/docs/threads/get-started"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  Meta for Developers
+                </a>
+                에서 Threads API 앱을 만들고 Access Token을 발급받으세요
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-notion-text mb-2">
+                User ID
+              </label>
+              <input
+                type="text"
+                value={threadsUserId}
+                onChange={(e) => setThreadsUserId(e.target.value)}
+                placeholder="Threads User ID를 입력하세요..."
+                className="w-full px-4 py-3 border border-notion-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-notion-text focus:ring-opacity-20"
+              />
+              <p className="mt-2 text-xs text-notion-muted">
+                Access Token 발급 시 함께 제공되는 User ID입니다
+              </p>
+            </div>
+
+            <button
+              onClick={handleTestThreads}
+              disabled={testingThreads || !threadsAccessToken || !threadsUserId}
+              className="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {testingThreads && (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              연결 테스트
+            </button>
           </div>
         </section>
 

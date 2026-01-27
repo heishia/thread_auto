@@ -1,11 +1,13 @@
 import { ipcMain, BrowserWindow, shell, Notification } from 'electron'
-import { exec } from 'child_process'
 import {
   getConfig,
   setConfig,
   getPosts,
   addPost,
   deletePost,
+  updatePost,
+  getPostById,
+  getPendingPosts,
   getFullPrompt,
   Post,
   AppConfig
@@ -24,71 +26,8 @@ let hourlyReminderTimeout: NodeJS.Timeout | null = null
 let hourlyReminderInterval: NodeJS.Timeout | null = null
 let nextReminderTime: Date | null = null
 
-// ============================================
-// Comet 쇼트컷 자동 트리거 (PowerShell 기반)
-// ============================================
-
-// #region agent log - call counter
-let triggerCallCount = 0
-// #endregion
-
-function triggerCometShortcut(): void {
-  // #region agent log - H2
-  triggerCallCount++
-  fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:triggerCometShortcut',message:'triggerCometShortcut called',data:{callCount:triggerCallCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
-
-  // PowerShell 스크립트:
-  // 1. 클립보드에 /threads-post 복사
-  // 2. Comet 창 활성화
-  // 3. Alt+A → Ctrl+V (붙여넣기) → Enter
-  const psScript = [
-    // Windows Forms 로드
-    'Add-Type -AssemblyName System.Windows.Forms',
-    'Add-Type -AssemblyName Microsoft.VisualBasic',
-    // 클립보드에 /threads-post 복사
-    "Set-Clipboard -Value '/threads-post'",
-    // 4초 대기 (페이지 로딩)
-    'Start-Sleep -Seconds 4',
-    // Comet 프로세스 찾아서 활성화
-    '$comet = Get-Process -Name Comet -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1',
-    'if ($comet) { [Microsoft.VisualBasic.Interaction]::AppActivate($comet.Id) }',
-    // 0.5초 대기 (창 활성화)
-    'Start-Sleep -Milliseconds 500',
-    // Alt+A (Comet Assistant 활성화)
-    "[System.Windows.Forms.SendKeys]::SendWait('%a')",
-    'Start-Sleep -Milliseconds 800',
-    // Ctrl+V (붙여넣기)
-    "[System.Windows.Forms.SendKeys]::SendWait('^v')",
-    'Start-Sleep -Milliseconds 300',
-    // Enter 키
-    "[System.Windows.Forms.SendKeys]::SendWait('{ENTER}')"
-  ].join('; ')
-  
-  // PowerShell 실행
-  const command = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript}"`
-  
-  console.log('Comet 쇼트컷 트리거 시작 (4초 후 Comet 활성화 및 실행)...')
-  
-  // #region agent log - H3
-  fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:exec-before',message:'PowerShell exec starting',data:{callCount:triggerCallCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-  // #endregion
-
-  exec(command, (error, _stdout, stderr) => {
-    // #region agent log - H3 callback
-    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:exec-callback',message:'PowerShell exec completed',data:{callCount:triggerCallCount,hasError:!!error,stderr:stderr||''},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-
-    if (error) {
-      console.error('Comet 쇼트컷 트리거 실패:', error.message)
-      return
-    }
-    if (stderr) {
-      console.error('PowerShell stderr:', stderr)
-    }
-    console.log('Comet /threads-post 쇼트컷 트리거 완료')
-  })
-}
+// 예약 발행 타이머 관리
+const scheduledTimers = new Map<string, NodeJS.Timeout>()
 
 function notifyRenderer(channel: string, data?: unknown): void {
   const windows = BrowserWindow.getAllWindows()
@@ -199,24 +138,33 @@ function getNextHourTimestamp(): number {
 function showReminderAndOpenThreads(): void {
   const config = getConfig()
   
-  // Windows 알림 표시
+  // Windows 토스트 알림 표시 (클릭해야 실행됨)
   const notification = new Notification({
     title: '스레드 글 작성 시간',
-    body: 'Comet이 자동으로 게시 준비를 시작합니다',
+    body: '클릭하면 스레드 페이지를 열고 앱을 표시합니다',
     icon: undefined // 기본 아이콘 사용
   })
   
-  notification.show()
-  
-  // 2초 후 브라우저에서 스레드 페이지 열기 + Comet 쇼트컷 트리거
-  setTimeout(() => {
+  // 알림 클릭 시 실행
+  notification.on('click', () => {
+    console.log(`[${new Date().toLocaleTimeString()}] 알림 클릭 - 실행 시작`)
+    
+    // 1. 일렉트론 앱 창 표시
+    const windows = BrowserWindow.getAllWindows()
+    windows.forEach(win => {
+      if (!win.isDestroyed()) {
+        win.show()
+        win.focus()
+      }
+    })
+    
+    // 2. 브라우저에서 스레드 페이지 열기
     const url = config.threadProfileUrl
     shell.openExternal(url)
     console.log(`[${new Date().toLocaleTimeString()}] 스레드 페이지 열림: ${url}`)
-    
-    // Comet 쇼트컷 자동 트리거
-    triggerCometShortcut()
-  }, 2000)
+  })
+  
+  notification.show()
 }
 
 export function startHourlyReminder(): void {
@@ -276,6 +224,216 @@ export function getHourlyReminderStatus(): PublishStatus {
     enabled: config.hourlyReminderEnabled,
     threadProfileUrl: config.threadProfileUrl,
     nextReminderTime: nextReminderTime ? nextReminderTime.toISOString() : null
+  }
+}
+
+// ============================================
+// Threads API 연동
+// ============================================
+
+async function publishToThreads(postId: string): Promise<{ success: boolean; threadsPostId?: string; error?: string }> {
+  const config = getConfig()
+  const post = getPostById(postId)
+  
+  if (!post) {
+    return { success: false, error: '게시물을 찾을 수 없습니다' }
+  }
+  
+  if (!config.threadsAccessToken || !config.threadsUserId) {
+    updatePost(postId, { status: 'failed', errorMessage: 'Threads API 인증 정보가 없습니다' })
+    return { success: false, error: 'Threads API 인증 정보가 없습니다' }
+  }
+  
+  try {
+    // 1단계: 미디어 컨테이너 생성
+    const containerResponse = await fetch(
+      `https://graph.threads.net/v1.0/${config.threadsUserId}/threads`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          media_type: 'TEXT',
+          text: post.content,
+          access_token: config.threadsAccessToken
+        })
+      }
+    )
+    
+    if (!containerResponse.ok) {
+      const errorText = await containerResponse.text()
+      throw new Error(`미디어 컨테이너 생성 실패: ${errorText}`)
+    }
+    
+    const containerData = await containerResponse.json()
+    const containerId = containerData.id
+    
+    // 2단계: 30초 대기 (미디어 처리 시간)
+    await new Promise(resolve => setTimeout(resolve, 5000))
+    
+    // 3단계: 발행
+    const publishResponse = await fetch(
+      `https://graph.threads.net/v1.0/${config.threadsUserId}/threads_publish`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          creation_id: containerId,
+          access_token: config.threadsAccessToken
+        })
+      }
+    )
+    
+    if (!publishResponse.ok) {
+      const errorText = await publishResponse.text()
+      throw new Error(`발행 실패: ${errorText}`)
+    }
+    
+    const publishData = await publishResponse.json()
+    const threadsPostId = publishData.id
+    
+    // 성공: 상태 업데이트
+    const updatedPost = updatePost(postId, {
+      status: 'published',
+      publishedAt: new Date().toISOString(),
+      threadsPostId: threadsPostId
+    })
+    
+    // 알림
+    new Notification({
+      title: 'Threads 발행 완료',
+      body: '예약된 게시물이 성공적으로 발행되었습니다!'
+    }).show()
+    
+    notifyRenderer('schedule:published', updatedPost)
+    
+    return { success: true, threadsPostId }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    
+    // 실패: 상태 업데이트
+    const updatedPost = updatePost(postId, {
+      status: 'failed',
+      errorMessage: errorMessage
+    })
+    
+    // 알림
+    new Notification({
+      title: 'Threads 발행 실패',
+      body: errorMessage
+    }).show()
+    
+    notifyRenderer('schedule:failed', updatedPost)
+    
+    return { success: false, error: errorMessage }
+  }
+}
+
+async function testThreadsConnection(): Promise<{ success: boolean; error?: string }> {
+  const config = getConfig()
+  
+  if (!config.threadsAccessToken || !config.threadsUserId) {
+    return { success: false, error: 'Access Token 또는 User ID가 없습니다' }
+  }
+  
+  try {
+    // 프로필 정보 조회로 연결 테스트
+    const response = await fetch(
+      `https://graph.threads.net/v1.0/${config.threadsUserId}?fields=id,username&access_token=${config.threadsAccessToken}`
+    )
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `API 오류: ${errorText}` }
+    }
+    
+    const data = await response.json()
+    console.log('Threads 연결 테스트 성공:', data)
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+async function checkPublishingLimit(): Promise<{ used: number; limit: number }> {
+  const config = getConfig()
+  
+  if (!config.threadsAccessToken || !config.threadsUserId) {
+    return { used: 0, limit: 250 }
+  }
+  
+  try {
+    const response = await fetch(
+      `https://graph.threads.net/v1.0/${config.threadsUserId}/threads_publishing_limit?fields=quota_usage,config&access_token=${config.threadsAccessToken}`
+    )
+    
+    if (!response.ok) {
+      return { used: 0, limit: 250 }
+    }
+    
+    const data = await response.json()
+    return {
+      used: data.data?.[0]?.quota_usage || 0,
+      limit: data.data?.[0]?.config?.quota_total || 250
+    }
+  } catch {
+    return { used: 0, limit: 250 }
+  }
+}
+
+// ============================================
+// 예약 발행 스케줄러
+// ============================================
+
+function schedulePost(postId: string, scheduledAt: string): void {
+  // 기존 타이머가 있으면 취소
+  const existingTimer = scheduledTimers.get(postId)
+  if (existingTimer) {
+    clearTimeout(existingTimer)
+    scheduledTimers.delete(postId)
+  }
+  
+  const delay = new Date(scheduledAt).getTime() - Date.now()
+  
+  if (delay <= 0) {
+    // 이미 지난 시간이면 즉시 발행
+    console.log(`[Schedule] 예약 시간이 지남 - 즉시 발행: ${postId}`)
+    publishToThreads(postId)
+    return
+  }
+  
+  console.log(`[Schedule] 예약 등록: ${postId}, ${Math.round(delay / 1000 / 60)}분 후`)
+  
+  const timer = setTimeout(async () => {
+    console.log(`[Schedule] 예약 시간 도달 - 발행 시작: ${postId}`)
+    await publishToThreads(postId)
+    scheduledTimers.delete(postId)
+  }, delay)
+  
+  scheduledTimers.set(postId, timer)
+}
+
+function cancelScheduledPost(postId: string): void {
+  const timer = scheduledTimers.get(postId)
+  if (timer) {
+    clearTimeout(timer)
+    scheduledTimers.delete(postId)
+    console.log(`[Schedule] 예약 취소: ${postId}`)
+  }
+}
+
+// 앱 시작 시 pending 상태 게시물들의 타이머 복구
+export function restoreScheduledPosts(): void {
+  const pendingPosts = getPendingPosts()
+  console.log(`[Schedule] 앱 시작 - ${pendingPosts.length}개의 예약된 게시물 복구 중`)
+  
+  for (const post of pendingPosts) {
+    if (post.scheduledAt) {
+      schedulePost(post.id, post.scheduledAt)
+    }
   }
 }
 
@@ -795,26 +953,14 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('publish:openThreads', () => {
-    // #region agent log - H1
-    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'Handler called - before openExternal',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-
     const config = getConfig()
     const url = config.threadProfileUrl
-    shell.openExternal(url)
     
-    // #region agent log - H1
-    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'After openExternal - before triggerCometShortcut',data:{url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-
+    // 브라우저에서 스레드 페이지 열기
+    shell.openExternal(url)
     console.log(`[${new Date().toLocaleTimeString()}] 수동 실행 - 스레드 페이지 열림: ${url}`)
     
-    // Comet 쇼트컷 자동 트리거
-    triggerCometShortcut()
-
-    // #region agent log - H1
-    fetch('http://127.0.0.1:7252/ingest/60da8520-aca6-4d22-a445-6f2978692639',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ipc.ts:publish:openThreads',message:'Handler completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
+    return { success: true }
   })
 
   ipcMain.handle('publish:getStatus', () => {
@@ -829,5 +975,75 @@ export function registerIpcHandlers(): void {
       stopHourlyReminder()
     }
     return getHourlyReminderStatus()
+  })
+
+  // ============================================
+  // Threads API 핸들러
+  // ============================================
+
+  ipcMain.handle('threads:test', async () => {
+    return await testThreadsConnection()
+  })
+
+  ipcMain.handle('threads:publish', async (_, postId: string) => {
+    return await publishToThreads(postId)
+  })
+
+  ipcMain.handle('threads:checkLimit', async () => {
+    return await checkPublishingLimit()
+  })
+
+  // ============================================
+  // 예약 발행 핸들러
+  // ============================================
+
+  ipcMain.handle('schedule:set', async (_, postId: string, scheduledAt: string) => {
+    // 게시물 상태 업데이트
+    const updatedPost = updatePost(postId, {
+      status: 'pending',
+      scheduledAt: scheduledAt
+    })
+    
+    if (!updatedPost) {
+      throw new Error('게시물을 찾을 수 없습니다')
+    }
+    
+    // 타이머 등록
+    schedulePost(postId, scheduledAt)
+    
+    return updatedPost
+  })
+
+  ipcMain.handle('schedule:cancel', async (_, postId: string) => {
+    // 타이머 취소
+    cancelScheduledPost(postId)
+    
+    // 상태를 draft로 되돌림
+    const updatedPost = updatePost(postId, {
+      status: 'draft',
+      scheduledAt: undefined
+    })
+    
+    if (!updatedPost) {
+      throw new Error('게시물을 찾을 수 없습니다')
+    }
+    
+    return updatedPost
+  })
+
+  ipcMain.handle('schedule:update', async (_, postId: string, scheduledAt: string) => {
+    // 게시물 상태 업데이트
+    const updatedPost = updatePost(postId, {
+      scheduledAt: scheduledAt
+    })
+    
+    if (!updatedPost) {
+      throw new Error('게시물을 찾을 수 없습니다')
+    }
+    
+    // 타이머 재등록
+    schedulePost(postId, scheduledAt)
+    
+    return updatedPost
   })
 }

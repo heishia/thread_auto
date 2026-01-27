@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { registerIpcHandlers, startAutoGeneration, stopAutoGeneration, getAutoGenerationStatus, startHourlyReminder, stopHourlyReminder, getHourlyReminderStatus } from './ipc'
+import { registerIpcHandlers, startAutoGeneration, stopAutoGeneration, getAutoGenerationStatus, startHourlyReminder, stopHourlyReminder, getHourlyReminderStatus, restoreScheduledPosts } from './ipc'
 import { getConfig, setConfig } from './store'
 
 let mainWindow: BrowserWindow | null = null
@@ -174,6 +174,9 @@ app.whenReady().then(() => {
   if (config.hourlyReminderEnabled) {
     startHourlyReminder()
   }
+  
+  // 예약 발행 타이머 복구
+  restoreScheduledPosts()
 
   setInterval(() => {
     updateTrayMenu()

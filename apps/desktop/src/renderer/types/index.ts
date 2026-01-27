@@ -1,3 +1,5 @@
+export type PostStatus = 'draft' | 'pending' | 'published' | 'failed'
+
 export interface Post {
   id: string
   type: 'ag' | 'pro' | 'br' | 'in'
@@ -5,6 +7,12 @@ export interface Post {
   topic: string
   createdAt: string
   thread?: string[]
+  // 예약 발행 관련 필드
+  status: PostStatus
+  scheduledAt?: string      // ISO 날짜 (예약 발행 시간)
+  publishedAt?: string      // ISO 날짜 (실제 발행 시간)
+  threadsPostId?: string    // Threads에 발행된 게시물 ID
+  errorMessage?: string     // 실패 시 에러 메시지
 }
 
 export interface AppConfig {
@@ -19,6 +27,12 @@ export interface AppConfig {
     br: string
     in: string
   }
+  // 게시하기 설정
+  threadProfileUrl: string
+  hourlyReminderEnabled: boolean
+  // Threads API 설정
+  threadsAccessToken: string
+  threadsUserId: string
 }
 
 export type PostType = Post['type']

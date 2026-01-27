@@ -1,5 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+export type PostStatus = 'draft' | 'pending' | 'published' | 'failed'
+
 export interface Post {
   id: string
   type: 'ag' | 'pro' | 'br' | 'in'
@@ -7,6 +9,12 @@ export interface Post {
   topic: string
   createdAt: string
   thread?: string[]
+  // 예약 발행 관련 필드
+  status: PostStatus
+  scheduledAt?: string
+  publishedAt?: string
+  threadsPostId?: string
+  errorMessage?: string
 }
 
 export interface AppConfig {
@@ -24,6 +32,9 @@ export interface AppConfig {
   // 게시하기 설정
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
+  // Threads API 설정
+  threadsAccessToken: string
+  threadsUserId: string
 }
 
 export interface AutoGenerationStatus {
@@ -69,6 +80,18 @@ declare global {
         openThreads: () => Promise<void>
         getStatus: () => Promise<PublishStatus>
         setConfig: (url: string, enabled: boolean) => Promise<PublishStatus>
+      }
+      threads: {
+        test: () => Promise<{ success: boolean; error?: string }>
+        publish: (postId: string) => Promise<{ success: boolean; threadsPostId?: string; error?: string }>
+        checkLimit: () => Promise<{ used: number; limit: number }>
+      }
+      schedule: {
+        set: (postId: string, scheduledAt: string) => Promise<Post>
+        cancel: (postId: string) => Promise<Post>
+        update: (postId: string, scheduledAt: string) => Promise<Post>
+        onPublished: (callback: (post: Post) => void) => () => void
+        onFailed: (callback: (post: Post) => void) => () => void
       }
     }
   }

@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import PostCard from './PostCard'
+import ScheduleModal from './ScheduleModal'
 import { Post, PostType, POST_TYPE_LABELS } from '../types'
 import { useGeneration } from '../contexts/GenerationContext'
 import { useToast } from '../contexts/ToastContext'
 
-function PostList(): JSX.Element {
+interface PostListProps {
+  onPostUpdate?: () => void
+}
+
+function PostList({ onPostUpdate }: PostListProps): JSX.Element {
   const [posts, setPosts] = useState<Post[]>([])
   const [filterType, setFilterType] = useState<PostType | 'all'>('all')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -20,6 +25,8 @@ function PostList(): JSX.Element {
   const [showAutoModal, setShowAutoModal] = useState(false)
   const [autoInterval, setAutoInterval] = useState(15)
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [approvingPost, setApprovingPost] = useState<Post | null>(null)
   const { generatingPosts, addGeneratingPost, removeGeneratingPost, refreshPosts, refreshTrigger } = useGeneration()
   const { showToast } = useToast()
 
@@ -74,8 +81,32 @@ function PostList(): JSX.Element {
     setSelectedPost(post)
   }
 
+  const handleApprove = (post: Post) => {
+    setApprovingPost(post)
+    setShowScheduleModal(true)
+  }
+
+  const handleScheduleConfirm = async (scheduledAt: string) => {
+    if (!approvingPost) return
+    
+    try {
+      await window.api.schedule.set(approvingPost.id, scheduledAt)
+      showToast('예약 발행이 설정되었습니다', 'success')
+      loadPosts()
+      onPostUpdate?.()
+    } catch (error) {
+      console.error('Failed to schedule post:', error)
+      showToast('예약 설정에 실패했습니다', 'error')
+    } finally {
+      setApprovingPost(null)
+      setShowScheduleModal(false)
+    }
+  }
+
+  // draft 상태인 게시물만 표시 (pending, published, failed는 다른 페이지에서)
+  const draftPosts = posts.filter((p) => p.status === 'draft' || !p.status)
   const filteredPosts =
-    filterType === 'all' ? posts : posts.filter((p) => p.type === filterType)
+    filterType === 'all' ? draftPosts : draftPosts.filter((p) => p.type === filterType)
 
   const typeFilters: (PostType | 'all')[] = ['all', 'ag', 'pro', 'br', 'in']
 
@@ -182,7 +213,13 @@ function PostList(): JSX.Element {
                   복사됨!
                 </div>
               )}
-              <PostCard post={post} onDelete={handleDelete} onCopy={handleCopy} onViewThread={handleViewThread} />
+              <PostCard 
+                post={post} 
+                onDelete={handleDelete} 
+                onCopy={handleCopy} 
+                onViewThread={handleViewThread}
+                onApprove={handleApprove}
+              />
             </div>
           ))}
         </div>
@@ -488,6 +525,16 @@ function PostList(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* 예약 발행 모달 */}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false)
+          setApprovingPost(null)
+        }}
+        onConfirm={handleScheduleConfirm}
+      />
     </div>
   )
 }
