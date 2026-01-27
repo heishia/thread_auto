@@ -31,8 +31,25 @@ export interface AppConfig {
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
   // Threads API 설정
+  threadsClientId: string
+  threadsClientSecret: string
+  threadsRedirectUri: string
   threadsAccessToken: string
   threadsUserId: string
+  // RAG 스타일 학습 설정
+  ragEnabled: boolean
+  ragAutoSavePublished: boolean
+  ragSimilarCount: number
+}
+
+// RAG 스타일 참조 인터페이스
+export interface StyleReference {
+  id: string
+  content: string
+  topic: string
+  embedding: number[]
+  createdAt: string
+  source: 'manual' | 'published'
 }
 
 export type PostType = Post['type']

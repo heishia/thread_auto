@@ -1,6 +1,6 @@
 interface SidebarProps {
-  currentPage: 'posts' | 'pending' | 'publish' | 'settings'
-  onPageChange: (page: 'posts' | 'pending' | 'publish' | 'settings') => void
+  currentPage: 'posts' | 'pending' | 'settings'
+  onPageChange: (page: 'posts' | 'pending' | 'settings') => void
   pendingCount?: number
 }
 
@@ -8,7 +8,6 @@ function Sidebar({ currentPage, onPageChange, pendingCount = 0 }: SidebarProps):
   const navItems = [
     { id: 'posts' as const, label: '게시물', icon: '📝' },
     { id: 'pending' as const, label: '대기', icon: '⏰', badge: pendingCount },
-    { id: 'publish' as const, label: '게시하기', icon: '🚀' },
     { id: 'settings' as const, label: '설정', icon: '⚙️' }
   ]
 

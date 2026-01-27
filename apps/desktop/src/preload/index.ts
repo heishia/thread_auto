@@ -34,8 +34,25 @@ export interface AppConfig {
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
   // Threads API 설정
+  threadsClientId: string
+  threadsClientSecret: string
+  threadsRedirectUri: string
   threadsAccessToken: string
   threadsUserId: string
+  // RAG 스타일 학습 설정
+  ragEnabled: boolean
+  ragAutoSavePublished: boolean
+  ragSimilarCount: number
+}
+
+// RAG 스타일 참조 인터페이스
+export interface StyleReference {
+  id: string
+  content: string
+  topic: string
+  embedding: number[]
+  createdAt: string
+  source: 'manual' | 'published'
 }
 
 export interface AutoGenerationStatus {
@@ -95,10 +112,25 @@ const api = {
   },
   // Threads API
   threads: {
-    test: (): Promise<{ success: boolean; error?: string }> => 
+    // OAuth 인증 URL 가져오기
+    getAuthUrl: (): Promise<{ success: boolean; url?: string; error?: string }> =>
+      ipcRenderer.invoke('threads:getAuthUrl'),
+    // OAuth 인증 페이지 열기 (브라우저)
+    openAuth: (): Promise<{ success: boolean; url?: string; error?: string }> =>
+      ipcRenderer.invoke('threads:openAuth'),
+    // Authorization Code로 토큰 교환
+    exchangeToken: (code: string): Promise<{ success: boolean; accessToken?: string; userId?: string; error?: string }> =>
+      ipcRenderer.invoke('threads:exchangeToken', code),
+    // 토큰 갱신
+    refreshToken: (): Promise<{ success: boolean; accessToken?: string; error?: string }> =>
+      ipcRenderer.invoke('threads:refreshToken'),
+    // 연결 테스트
+    test: (): Promise<{ success: boolean; username?: string; error?: string }> => 
       ipcRenderer.invoke('threads:test'),
+    // 게시물 발행
     publish: (postId: string): Promise<{ success: boolean; threadsPostId?: string; error?: string }> =>
       ipcRenderer.invoke('threads:publish', postId),
+    // 발행 한도 확인
     checkLimit: (): Promise<{ used: number; limit: number }> =>
       ipcRenderer.invoke('threads:checkLimit')
   },
@@ -120,6 +152,21 @@ const api = {
       ipcRenderer.on('schedule:failed', handler)
       return () => ipcRenderer.removeListener('schedule:failed', handler)
     }
+  },
+  // RAG 스타일 참조
+  style: {
+    getAll: (): Promise<StyleReference[]> =>
+      ipcRenderer.invoke('style:getAll'),
+    add: (content: string, topic: string): Promise<StyleReference> =>
+      ipcRenderer.invoke('style:add', content, topic),
+    addFromPost: (postId: string): Promise<StyleReference> =>
+      ipcRenderer.invoke('style:addFromPost', postId),
+    delete: (id: string): Promise<StyleReference[]> =>
+      ipcRenderer.invoke('style:delete', id),
+    clear: (): Promise<StyleReference[]> =>
+      ipcRenderer.invoke('style:clear'),
+    count: (): Promise<number> =>
+      ipcRenderer.invoke('style:count')
   }
 }
 

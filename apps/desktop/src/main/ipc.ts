@@ -1,4 +1,6 @@
 import { ipcMain, BrowserWindow, shell, Notification } from 'electron'
+import { exec } from 'child_process'
+import { existsSync } from 'fs'
 import {
   getConfig,
   setConfig,
@@ -10,7 +12,13 @@ import {
   getPendingPosts,
   getFullPrompt,
   Post,
-  AppConfig
+  AppConfig,
+  StyleReference,
+  getStyleReferences,
+  addStyleReference,
+  deleteStyleReference,
+  clearStyleReferences,
+  findSimilarStyleReferences
 } from './store'
 
 interface TopicItem {
@@ -20,6 +28,33 @@ interface TopicItem {
 
 let autoGenerateInterval: NodeJS.Timeout | null = null
 let isAutoGenerating = false
+
+// Chrome 브라우저로 URL 열기 (Windows)
+function openInChrome(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const chromePaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+    ]
+
+    const chromePath = chromePaths.find((p) => existsSync(p))
+
+    if (chromePath) {
+      exec(`"${chromePath}" "${url}"`, (error) => {
+        if (error) {
+          console.error('Chrome 실행 실패:', error)
+          shell.openExternal(url) // fallback to default browser
+        }
+        resolve(true)
+      })
+    } else {
+      console.log('Chrome을 찾을 수 없어 기본 브라우저로 엽니다')
+      shell.openExternal(url)
+      resolve(false)
+    }
+  })
+}
 
 // 정각 알림 스케줄링 변수
 let hourlyReminderTimeout: NodeJS.Timeout | null = null
@@ -73,6 +108,7 @@ async function runAutoGenerate(): Promise<Post | null> {
       content: mainPost,
       topic: topicItem.topic,
       createdAt: new Date().toISOString(),
+      status: 'draft',
       thread: thread.length > 0 ? thread : undefined
     }
 
@@ -228,8 +264,118 @@ export function getHourlyReminderStatus(): PublishStatus {
 }
 
 // ============================================
-// Threads API 연동
+// Threads API 연동 (직접 API 호출)
 // ============================================
+
+// OAuth 인증 URL 생성
+function getThreadsAuthUrl(): string | null {
+  const config = getConfig()
+  
+  if (!config.threadsClientId) {
+    return null
+  }
+  
+  const params = new URLSearchParams({
+    client_id: config.threadsClientId,
+    redirect_uri: config.threadsRedirectUri || 'https://www.facebook.com/connect/login_success.html',
+    scope: 'threads_basic,threads_content_publish,threads_manage_insights',
+    response_type: 'code'
+  })
+  
+  return `https://threads.net/oauth/authorize?${params.toString()}`
+}
+
+// Authorization Code로 Access Token 교환
+async function exchangeThreadsToken(code: string): Promise<{ success: boolean; accessToken?: string; userId?: string; error?: string }> {
+  const config = getConfig()
+  
+  if (!config.threadsClientId || !config.threadsClientSecret) {
+    return { success: false, error: 'Threads 앱 설정이 없습니다 (Client ID/Secret 필요)' }
+  }
+  
+  try {
+    // Short-lived 토큰 발급
+    const tokenResponse = await fetch('https://graph.threads.net/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: config.threadsClientId,
+        client_secret: config.threadsClientSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: config.threadsRedirectUri || 'https://www.facebook.com/connect/login_success.html',
+        code: code
+      })
+    })
+    
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      throw new Error(`토큰 발급 실패: ${errorText}`)
+    }
+    
+    const tokenData = await tokenResponse.json()
+    const shortLivedToken = tokenData.access_token
+    const userId = tokenData.user_id
+    
+    // Long-lived 토큰으로 교환
+    const longLivedResponse = await fetch(
+      `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${config.threadsClientSecret}&access_token=${shortLivedToken}`
+    )
+    
+    if (!longLivedResponse.ok) {
+      const errorText = await longLivedResponse.text()
+      throw new Error(`Long-lived 토큰 교환 실패: ${errorText}`)
+    }
+    
+    const longLivedData = await longLivedResponse.json()
+    const longLivedToken = longLivedData.access_token
+    
+    // 설정에 저장
+    setConfig({
+      threadsAccessToken: longLivedToken,
+      threadsUserId: String(userId)
+    })
+    
+    console.log('Threads 토큰 발급 성공:', { userId })
+    return { success: true, accessToken: longLivedToken, userId: String(userId) }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('Threads 토큰 교환 실패:', errorMessage)
+    return { success: false, error: errorMessage }
+  }
+}
+
+// Long-lived 토큰 갱신
+async function refreshThreadsToken(): Promise<{ success: boolean; accessToken?: string; error?: string }> {
+  const config = getConfig()
+  
+  if (!config.threadsAccessToken) {
+    return { success: false, error: 'Access Token이 없습니다' }
+  }
+  
+  try {
+    const response = await fetch(
+      `https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${config.threadsAccessToken}`
+    )
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`토큰 갱신 실패: ${errorText}`)
+    }
+    
+    const data = await response.json()
+    const newToken = data.access_token
+    
+    // 새 토큰 저장
+    setConfig({ threadsAccessToken: newToken })
+    
+    console.log('Threads 토큰 갱신 성공')
+    return { success: true, accessToken: newToken }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('Threads 토큰 갱신 실패:', errorMessage)
+    return { success: false, error: errorMessage }
+  }
+}
 
 async function publishToThreads(postId: string): Promise<{ success: boolean; threadsPostId?: string; error?: string }> {
   const config = getConfig()
@@ -250,9 +396,7 @@ async function publishToThreads(postId: string): Promise<{ success: boolean; thr
       `https://graph.threads.net/v1.0/${config.threadsUserId}/threads`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           media_type: 'TEXT',
           text: post.content,
@@ -269,7 +413,7 @@ async function publishToThreads(postId: string): Promise<{ success: boolean; thr
     const containerData = await containerResponse.json()
     const containerId = containerData.id
     
-    // 2단계: 30초 대기 (미디어 처리 시간)
+    // 2단계: 5초 대기 (미디어 처리 시간)
     await new Promise(resolve => setTimeout(resolve, 5000))
     
     // 3단계: 발행
@@ -277,9 +421,7 @@ async function publishToThreads(postId: string): Promise<{ success: boolean; thr
       `https://graph.threads.net/v1.0/${config.threadsUserId}/threads_publish`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           creation_id: containerId,
           access_token: config.threadsAccessToken
@@ -301,6 +443,13 @@ async function publishToThreads(postId: string): Promise<{ success: boolean; thr
       publishedAt: new Date().toISOString(),
       threadsPostId: threadsPostId
     })
+    
+    // RAG: 발행된 글을 스타일 참조로 자동 저장
+    if (config.ragEnabled && config.ragAutoSavePublished && post) {
+      createStyleReference(post.content, post.topic, 'published')
+        .then(() => console.log('발행된 글이 스타일 참조로 저장됨'))
+        .catch(err => console.error('스타일 참조 저장 실패:', err))
+    }
     
     // 알림
     new Notification({
@@ -332,7 +481,7 @@ async function publishToThreads(postId: string): Promise<{ success: boolean; thr
   }
 }
 
-async function testThreadsConnection(): Promise<{ success: boolean; error?: string }> {
+async function testThreadsConnection(): Promise<{ success: boolean; username?: string; error?: string }> {
   const config = getConfig()
   
   if (!config.threadsAccessToken || !config.threadsUserId) {
@@ -340,7 +489,6 @@ async function testThreadsConnection(): Promise<{ success: boolean; error?: stri
   }
   
   try {
-    // 프로필 정보 조회로 연결 테스트
     const response = await fetch(
       `https://graph.threads.net/v1.0/${config.threadsUserId}?fields=id,username&access_token=${config.threadsAccessToken}`
     )
@@ -352,7 +500,7 @@ async function testThreadsConnection(): Promise<{ success: boolean; error?: stri
     
     const data = await response.json()
     console.log('Threads 연결 테스트 성공:', data)
-    return { success: true }
+    return { success: true, username: data.username }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
@@ -646,6 +794,126 @@ async function getAccessToken(serviceAccountKey: string): Promise<string> {
   }
 }
 
+// ============================================
+// RAG: Vertex AI 임베딩 생성
+// ============================================
+
+async function generateEmbedding(
+  gcpProjectId: string,
+  serviceAccountKey: string,
+  text: string
+): Promise<number[]> {
+  const accessToken = await getAccessToken(serviceAccountKey)
+  const location = 'us-central1'
+  const modelId = 'text-embedding-005'
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/${location}/publishers/google/models/${modelId}:predict`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      instances: [
+        { content: text }
+      ]
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Embedding API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  
+  if (!data.predictions || !data.predictions[0] || !data.predictions[0].embeddings) {
+    throw new Error('임베딩 생성 실패: 응답 형식이 올바르지 않습니다')
+  }
+
+  return data.predictions[0].embeddings.values
+}
+
+// 스타일 참조 추가 (임베딩 생성 포함)
+async function createStyleReference(
+  content: string,
+  topic: string,
+  source: 'manual' | 'published'
+): Promise<StyleReference | null> {
+  const config = getConfig()
+  
+  if (!config.gcpProjectId || !config.gcpServiceAccountKey) {
+    console.error('스타일 참조 생성 실패: GCP 설정 없음')
+    return null
+  }
+
+  try {
+    const embedding = await generateEmbedding(
+      config.gcpProjectId,
+      config.gcpServiceAccountKey,
+      content
+    )
+
+    const styleRef: StyleReference = {
+      id: generateId(),
+      content,
+      topic,
+      embedding,
+      createdAt: new Date().toISOString(),
+      source
+    }
+
+    addStyleReference(styleRef)
+    console.log(`스타일 참조 추가됨: ${topic} (${source})`)
+    return styleRef
+  } catch (error) {
+    console.error('스타일 참조 생성 실패:', error)
+    return null
+  }
+}
+
+// RAG: 유사한 스타일 참조를 프롬프트에 추가
+async function getStyleReferencePrompt(topic: string): Promise<string> {
+  const config = getConfig()
+  
+  if (!config.ragEnabled) return ''
+  if (!config.gcpProjectId || !config.gcpServiceAccountKey) return ''
+  
+  const refs = getStyleReferences()
+  if (refs.length === 0) return ''
+
+  try {
+    // 주제의 임베딩 생성
+    const queryEmbedding = await generateEmbedding(
+      config.gcpProjectId,
+      config.gcpServiceAccountKey,
+      topic
+    )
+
+    // 유사한 참조 검색
+    const similarRefs = findSimilarStyleReferences(queryEmbedding, config.ragSimilarCount)
+    
+    if (similarRefs.length === 0) return ''
+
+    // 프롬프트 생성
+    const examplesText = similarRefs
+      .map((ref, i) => `[예시 ${i + 1}: ${ref.topic}]\n${ref.content}`)
+      .join('\n\n---\n\n')
+
+    return `\n[내 글쓰기 스타일 참조]
+아래는 내가 이전에 작성한 글들이야. 이 스타일과 톤을 참고해서 새 글을 작성해줘:
+
+${examplesText}
+
+위 예시들의 문체, 줄바꿈 패턴, 단어 선택, 톤을 분석해서 비슷한 스타일로 작성해.
+`
+  } catch (error) {
+    console.error('스타일 참조 검색 실패:', error)
+    return ''
+  }
+}
+
 async function generatePostWithVertexAI(
   gcpProjectId: string,
   serviceAccountKey: string,
@@ -653,8 +921,11 @@ async function generatePostWithVertexAI(
   topic: string,
   researchInfo: string
 ): Promise<{ mainPost: string; thread: string[] }> {
+  // RAG: 스타일 참조 프롬프트 가져오기
+  const styleReferencePrompt = await getStyleReferencePrompt(topic)
+  
   const fullPrompt = `${prompt}
-
+${styleReferencePrompt}
 [주제]
 ${topic}
 
@@ -803,6 +1074,7 @@ export function registerIpcHandlers(): void {
         content: mainPost,
         topic: topicItem.topic,
         createdAt: new Date().toISOString(),
+        status: 'draft',
         thread: thread.length > 0 ? thread : undefined
       }
 
@@ -856,6 +1128,7 @@ export function registerIpcHandlers(): void {
             content: mainPost,
             topic: topicItem.topic,
             createdAt: new Date().toISOString(),
+            status: 'draft',
             thread: thread.length > 0 ? thread : undefined
           }
 
@@ -905,6 +1178,7 @@ export function registerIpcHandlers(): void {
       content: mainPost,
       topic: topicItem.topic,
       createdAt: new Date().toISOString(),
+      status: 'draft',
       thread: thread.length > 0 ? thread : undefined
     }
 
@@ -981,14 +1255,46 @@ export function registerIpcHandlers(): void {
   // Threads API 핸들러
   // ============================================
 
+  // OAuth 인증 URL 가져오기
+  ipcMain.handle('threads:getAuthUrl', () => {
+    const authUrl = getThreadsAuthUrl()
+    if (!authUrl) {
+      return { success: false, error: 'Threads 앱 설정이 없습니다 (Client ID/Secret 필요)' }
+    }
+    return { success: true, url: authUrl }
+  })
+
+  // OAuth 인증 URL 열기 (Chrome 브라우저)
+  ipcMain.handle('threads:openAuth', async () => {
+    const authUrl = getThreadsAuthUrl()
+    if (!authUrl) {
+      return { success: false, error: 'Threads 앱 설정이 없습니다' }
+    }
+    await openInChrome(authUrl)
+    return { success: true, url: authUrl }
+  })
+
+  // Authorization Code로 토큰 교환
+  ipcMain.handle('threads:exchangeToken', async (_, code: string) => {
+    return await exchangeThreadsToken(code)
+  })
+
+  // 토큰 갱신
+  ipcMain.handle('threads:refreshToken', async () => {
+    return await refreshThreadsToken()
+  })
+
+  // 연결 테스트
   ipcMain.handle('threads:test', async () => {
     return await testThreadsConnection()
   })
 
+  // 게시물 발행
   ipcMain.handle('threads:publish', async (_, postId: string) => {
     return await publishToThreads(postId)
   })
 
+  // 발행 한도 확인
   ipcMain.handle('threads:checkLimit', async () => {
     return await checkPublishingLimit()
   })
@@ -1045,5 +1351,54 @@ export function registerIpcHandlers(): void {
     schedulePost(postId, scheduledAt)
     
     return updatedPost
+  })
+
+  // ============================================
+  // RAG 스타일 참조 핸들러
+  // ============================================
+
+  // 스타일 참조 목록 조회
+  ipcMain.handle('style:getAll', () => {
+    return getStyleReferences()
+  })
+
+  // 스타일 참조 수동 추가
+  ipcMain.handle('style:add', async (_, content: string, topic: string) => {
+    const ref = await createStyleReference(content, topic, 'manual')
+    if (!ref) {
+      throw new Error('스타일 참조 추가 실패: GCP 설정을 확인해주세요')
+    }
+    return ref
+  })
+
+  // 기존 게시물을 스타일 참조로 추가
+  ipcMain.handle('style:addFromPost', async (_, postId: string) => {
+    const post = getPostById(postId)
+    if (!post) {
+      throw new Error('게시물을 찾을 수 없습니다')
+    }
+    
+    const ref = await createStyleReference(post.content, post.topic, 'manual')
+    if (!ref) {
+      throw new Error('스타일 참조 추가 실패: GCP 설정을 확인해주세요')
+    }
+    return ref
+  })
+
+  // 스타일 참조 삭제
+  ipcMain.handle('style:delete', (_, id: string) => {
+    deleteStyleReference(id)
+    return getStyleReferences()
+  })
+
+  // 스타일 참조 전체 삭제
+  ipcMain.handle('style:clear', () => {
+    clearStyleReferences()
+    return []
+  })
+
+  // 스타일 참조 개수 조회
+  ipcMain.handle('style:count', () => {
+    return getStyleReferences().length
   })
 }

@@ -17,6 +17,16 @@ export interface Post {
   errorMessage?: string     // 실패 시 에러 메시지
 }
 
+// RAG 스타일 참조를 위한 인터페이스
+export interface StyleReference {
+  id: string
+  content: string           // 원본 글 내용
+  topic: string             // 주제
+  embedding: number[]       // 벡터 임베딩
+  createdAt: string
+  source: 'manual' | 'published'  // 수동 추가 또는 발행된 글에서 자동 추가
+}
+
 export interface AppConfig {
   perplexityApiKey: string
   gcpProjectId: string
@@ -33,13 +43,21 @@ export interface AppConfig {
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
   // Threads API 설정
+  threadsClientId: string
+  threadsClientSecret: string
+  threadsRedirectUri: string
   threadsAccessToken: string
   threadsUserId: string
+  // RAG 스타일 학습 설정
+  ragEnabled: boolean                    // RAG 기능 활성화 여부
+  ragAutoSavePublished: boolean          // 발행된 글 자동 저장 여부
+  ragSimilarCount: number                // 참조할 유사 글 개수 (1~5)
 }
 
 interface StoreSchema {
   config: AppConfig
   posts: Post[]
+  styleReferences: StyleReference[]  // RAG용 스타일 참조 글
 }
 
 // 모든 타입에 공통으로 적용되는 기본 프롬프트 (UI에 표시되지 않음)
@@ -107,10 +125,18 @@ const store = new Store<StoreSchema>({
       threadProfileUrl: 'https://www.threads.com/@kimppopp_',
       hourlyReminderEnabled: false,
       // Threads API 기본값
+      threadsClientId: '',
+      threadsClientSecret: '',
+      threadsRedirectUri: 'https://www.facebook.com/connect/login_success.html',
       threadsAccessToken: '',
-      threadsUserId: ''
+      threadsUserId: '',
+      // RAG 기본값
+      ragEnabled: false,
+      ragAutoSavePublished: true,
+      ragSimilarCount: 3
     },
-    posts: []
+    posts: [],
+    styleReferences: []
   }
 })
 
@@ -165,6 +191,72 @@ export function getPendingPosts(): Post[] {
 
 export function clearPosts(): void {
   store.set('posts', [])
+}
+
+// ============================================
+// RAG 스타일 참조 관련 함수
+// ============================================
+
+export function getStyleReferences(): StyleReference[] {
+  return store.get('styleReferences') || []
+}
+
+export function addStyleReference(ref: StyleReference): void {
+  const refs = getStyleReferences()
+  store.set('styleReferences', [ref, ...refs])
+}
+
+export function deleteStyleReference(id: string): void {
+  const refs = getStyleReferences()
+  store.set('styleReferences', refs.filter(r => r.id !== id))
+}
+
+export function clearStyleReferences(): void {
+  store.set('styleReferences', [])
+}
+
+export function getStyleReferenceById(id: string): StyleReference | null {
+  const refs = getStyleReferences()
+  return refs.find(r => r.id === id) || null
+}
+
+// 코사인 유사도 계산
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0
+  
+  let dotProduct = 0
+  let normA = 0
+  let normB = 0
+  
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  
+  if (normA === 0 || normB === 0) return 0
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
+// 유사한 스타일 참조 검색
+export function findSimilarStyleReferences(
+  queryEmbedding: number[],
+  topK: number = 3
+): StyleReference[] {
+  const refs = getStyleReferences()
+  
+  if (refs.length === 0) return []
+  
+  // 유사도 계산 및 정렬
+  const scored = refs
+    .map(ref => ({
+      ref,
+      score: cosineSimilarity(queryEmbedding, ref.embedding)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+  
+  return scored.map(s => s.ref)
 }
 
 export { store }

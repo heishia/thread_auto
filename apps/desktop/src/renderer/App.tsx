@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import PostList from './components/PostList'
 import PendingPage from './components/PendingPage'
-import PublishPage from './components/PublishPage'
 import SettingsPage from './components/SettingsPage'
 import { GenerationProvider } from './contexts/GenerationContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { Post } from './types'
 
-type Page = 'posts' | 'pending' | 'publish' | 'settings'
+type Page = 'posts' | 'pending' | 'settings'
 
 function App(): JSX.Element {
   const [currentPage, setCurrentPage] = useState<Page>('posts')
@@ -35,8 +34,6 @@ function App(): JSX.Element {
         return <PostList onPostUpdate={updatePendingCount} />
       case 'pending':
         return <PendingPage />
-      case 'publish':
-        return <PublishPage />
       case 'settings':
         return <SettingsPage />
       default:

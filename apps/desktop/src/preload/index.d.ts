@@ -33,8 +33,25 @@ export interface AppConfig {
   threadProfileUrl: string
   hourlyReminderEnabled: boolean
   // Threads API 설정
+  threadsClientId: string
+  threadsClientSecret: string
+  threadsRedirectUri: string
   threadsAccessToken: string
   threadsUserId: string
+  // RAG 스타일 학습 설정
+  ragEnabled: boolean
+  ragAutoSavePublished: boolean
+  ragSimilarCount: number
+}
+
+// RAG 스타일 참조 인터페이스
+export interface StyleReference {
+  id: string
+  content: string
+  topic: string
+  embedding: number[]
+  createdAt: string
+  source: 'manual' | 'published'
 }
 
 export interface AutoGenerationStatus {
@@ -82,7 +99,11 @@ declare global {
         setConfig: (url: string, enabled: boolean) => Promise<PublishStatus>
       }
       threads: {
-        test: () => Promise<{ success: boolean; error?: string }>
+        getAuthUrl: () => Promise<{ success: boolean; url?: string; error?: string }>
+        openAuth: () => Promise<{ success: boolean; url?: string; error?: string }>
+        exchangeToken: (code: string) => Promise<{ success: boolean; accessToken?: string; userId?: string; error?: string }>
+        refreshToken: () => Promise<{ success: boolean; accessToken?: string; error?: string }>
+        test: () => Promise<{ success: boolean; username?: string; error?: string }>
         publish: (postId: string) => Promise<{ success: boolean; threadsPostId?: string; error?: string }>
         checkLimit: () => Promise<{ used: number; limit: number }>
       }
@@ -92,6 +113,14 @@ declare global {
         update: (postId: string, scheduledAt: string) => Promise<Post>
         onPublished: (callback: (post: Post) => void) => () => void
         onFailed: (callback: (post: Post) => void) => () => void
+      }
+      style: {
+        getAll: () => Promise<StyleReference[]>
+        add: (content: string, topic: string) => Promise<StyleReference>
+        addFromPost: (postId: string) => Promise<StyleReference>
+        delete: (id: string) => Promise<StyleReference[]>
+        clear: () => Promise<StyleReference[]>
+        count: () => Promise<number>
       }
     }
   }
