@@ -1,0 +1,78 @@
+{
+  "display": {
+    "title": "ThreadAuto",
+    "subtitle": "AI 기반 Threads 콘텐츠 자동 생성 및 발행 데스크톱 앱",
+    "description": "Google Vertex AI와 Perplexity API를 활용하여 Threads 게시물을 자동으로 생성하고, Meta Graph API를 통해 직접 발행하는 Electron 데스크톱 애플리케이션입니다.",
+    "detailed_description": "## ThreadAuto\n\nAI를 활용한 Threads 소셜 미디어 콘텐츠 자동화 도구입니다.\n\n### 핵심 특징\n- **4가지 전략별 콘텐츠 생성**: 후킹(ag), 증명(pro), 브랜드(br), 인사이트(in) 유형별 최적화된 AI 콘텐츠 생성\n- **완전 자동화 파이프라인**: 토픽 생성 → 리서치 → 콘텐츠 생성 → Threads 발행까지 원스톱 처리\n- **RAG 기반 스타일 학습**: 기존 게시물 임베딩을 활용한 일관된 글쓰기 스타일 유지\n- **멀티 스레드 분할**: 긴 콘텐츠를 자연스러운 스레드 시리즈로 자동 분할"
+  },
+
+  "classification": {
+    "project_type": ["desktop", "automation"],
+    "tags": ["Electron", "React", "TypeScript", "AI", "Threads", "SNS Automation", "Content Generation"],
+    "status": "in_progress",
+    "priority": 0
+  },
+
+  "timeline": {
+    "start_date": "2026-01-15",
+    "end_date": null,
+    "is_ongoing": true
+  },
+
+  "technologies": [
+    { "name": "Electron", "category": "Frontend", "version": "39.2.7" },
+    { "name": "React", "category": "Frontend", "version": "18.2.0" },
+    { "name": "TypeScript", "category": "Language", "version": "5.3.3" },
+    { "name": "Tailwind CSS", "category": "Frontend", "version": "3.4.1" },
+    { "name": "Vite", "category": "Tool", "version": "7.3.1" },
+    { "name": "electron-vite", "category": "Tool", "version": "5.0.0" },
+    { "name": "electron-store", "category": "Tool", "version": "8.2.0" },
+    { "name": "Google Vertex AI", "category": "AI" },
+    { "name": "Perplexity API", "category": "AI" },
+    { "name": "Threads Graph API", "category": "Backend" },
+    { "name": "threads-ts-sdk", "category": "Backend", "version": "1.0.3" },
+    { "name": "GitHub Actions", "category": "DevOps" }
+  ],
+
+  "features": [
+    { "title": "4가지 전략별 AI 콘텐츠 생성", "description": "후킹(ag), 증명(pro), 브랜드(br), 인사이트(in) 4가지 유형별로 최적화된 AI 콘텐츠를 자동 생성합니다." },
+    { "title": "Threads OAuth 인증 및 직접 발행", "description": "Meta Threads Graph API와 OAuth2 인증을 통해 생성된 콘텐츠를 Threads에 직접 발행합니다." },
+    { "title": "자동 발행 스케줄링", "description": "설정된 간격에 따라 콘텐츠를 자동으로 생성하고 발행하는 스케줄링 기능을 제공합니다." },
+    { "title": "RAG 기반 스타일 학습", "description": "기존 게시물의 임베딩을 활용하여 일관된 글쓰기 스타일을 유지하며 새로운 콘텐츠를 생성합니다." },
+    { "title": "멀티 스레드 분할 생성", "description": "긴 콘텐츠를 3-8개의 연결된 스레드 시리즈로 자동 분할하여 게시합니다." }
+  ],
+
+  "screenshots": [
+    { "file": "main.png", "caption": "메인 화면", "type": "desktop" }
+  ],
+
+  "links": {
+    "demo_url": "",
+    "documentation_url": ""
+  },
+
+  "metrics": {
+    "lines_of_code": 0,
+    "commit_count": 49,
+    "contributor_count": 1
+  },
+
+  "story": {
+    "challenges": "",
+    "achievements": ""
+  },
+
+  "roles": [
+    {
+      "role_name": "Solo Developer",
+      "responsibility": "전체 시스템 설계 및 구현 (프론트엔드, 백엔드 로직, API 연동, CI/CD)",
+      "contribution_percentage": 100,
+      "contributions": {
+        "backend": true,
+        "frontend": true,
+        "database": false,
+        "devops": true
+      }
+    }
+  ]
+}

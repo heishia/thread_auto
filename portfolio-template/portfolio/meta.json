@@ -1,0 +1,69 @@
+{
+  "display": {
+    "title": "프로젝트 제목",
+    "subtitle": "한 줄 설명",
+    "description": "프로젝트에 대한 2-3줄 요약 설명입니다.",
+    "detailed_description": "프로젝트에 대한 상세 설명입니다.\n\n여러 줄로 작성 가능합니다."
+  },
+
+  "classification": {
+    "project_type": ["web"],
+    "tags": ["React", "TypeScript"],
+    "status": "completed",
+    "priority": 0
+  },
+
+  "timeline": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-03-01",
+    "is_ongoing": false
+  },
+
+  "technologies": [
+    { "name": "React", "category": "Frontend", "version": "18" },
+    { "name": "TypeScript", "category": "Frontend", "version": "5" },
+    { "name": "TailwindCSS", "category": "Frontend" },
+    { "name": "FastAPI", "category": "Backend" },
+    { "name": "PostgreSQL", "category": "Database" }
+  ],
+
+  "features": [
+    { "title": "주요 기능 1", "description": "기능에 대한 설명" },
+    { "title": "주요 기능 2", "description": "기능에 대한 설명" },
+    { "title": "주요 기능 3", "description": "기능에 대한 설명" }
+  ],
+
+  "screenshots": [
+    { "file": "main.png", "caption": "메인 화면", "type": "desktop" },
+    { "file": "feature-01.png", "caption": "기능 화면", "type": "desktop" },
+    { "file": "demo.mp4", "caption": "데모 영상", "type": "video" }
+  ],
+
+  "links": {
+    "demo_url": "https://demo.example.com",
+    "documentation_url": "https://docs.example.com"
+  },
+
+  "metrics": {
+    "lines_of_code": 5000,
+    "commit_count": 100,
+    "contributor_count": 1
+  },
+
+  "story": {
+    "challenges": "이 프로젝트에서 겪은 어려움과 해결 방법을 적어주세요.",
+    "achievements": "프로젝트의 성과나 결과를 적어주세요."
+  },
+
+  "roles": [
+    {
+      "role_name": "Full Stack Developer",
+      "responsibility": "전체 시스템 설계 및 구현",
+      "contribution_percentage": 100
+    }
+  ],
+
+  "client": {
+    "name": "클라이언트명 (외주인 경우)"
+  }
+}

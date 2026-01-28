@@ -1,0 +1,27 @@
+{
+  "display": {
+    "title": "프로젝트 제목",
+    "subtitle": "한 줄 요약",
+    "description": "프로젝트 설명"
+  },
+  "classification": {
+    "project_type": ["web"],
+    "status": "completed",
+    "priority": 0
+  },
+  "timeline": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-03-01",
+    "is_ongoing": false
+  },
+  "technologies": [
+    { "name": "React", "category": "Frontend" },
+    { "name": "TypeScript", "category": "Frontend" }
+  ],
+  "features": [
+    { "title": "주요 기능", "description": "기능 설명" }
+  ],
+  "screenshots": [
+    { "file": "main.png", "caption": "메인 화면", "type": "desktop" }
+  ]
+}
